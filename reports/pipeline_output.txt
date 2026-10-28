@@ -1,0 +1,21 @@
+[ingest] Udupi: reusing Udupi_2021-01-01_2026-10-20.json
+[ingest] Mangaluru: reusing Mangaluru_2021-01-01_2026-10-20.json
+[ingest] Bengaluru: reusing Bengaluru_2021-01-01_2026-10-20.json
+[transform] data quality: {"rows_in": 6357, "duplicates_removed": 0, "out_of_range_values_nulled": 0, "missing_values_interpolated": 0, "rows_dropped_unfixable": 0, "rows_out": 6357, "gold_rows": 6339, "date_range": ["2021-01-01", "2026-10-20"]}
+[train] 5385 train rows, 951 test rows, window 2021-01-07..2026-10-19
+[train] baseline persistence   MAE=0.886  RMSE=1.190  R2=0.741
+[train] ridge                    MAE=0.831  RMSE=1.101  R2=0.778
+[train] random_forest            MAE=0.834  RMSE=1.085  R2=0.785
+[train] hist_gradient_boosting   MAE=0.861  RMSE=1.120  R2=0.771
+[train] best model: ridge (registry v11), MAE 0.831 vs baseline 0.886
+[monitor] window 2026-08-21 .. 2026-10-19 (180 rows), model ridge
+[monitor] reference: season-matched training rows (1380)
+[monitor]   tmax          PSI=1.88   KS p=3.88e-36  mean 28.0 -> 30.15   DRIFT
+[monitor]   tmin          PSI=1.38   KS p=2.63e-14  mean 22.14 -> 23.16   DRIFT
+[monitor]   precip        PSI=0.29   KS p=1.18e-07  mean 10.09 -> 4.99   DRIFT
+[monitor]   wind          PSI=0.239  KS p=4.99e-05  mean 15.96 -> 14.31   DRIFT
+[monitor]   radiation     PSI=0.989  KS p=3.68e-28  mean 17.55 -> 20.97   DRIFT
+[monitor]   tmax_roll7    PSI=3.44   KS p=1.04e-52  mean 27.97 -> 30.07   DRIFT
+[monitor]   precip_roll7  PSI=1.756  KS p=4.44e-20  mean 10.45 -> 4.86   DRIFT
+[monitor] live MAE 0.892 (training 0.831, persistence 0.876)
+[monitor] DECISION: WATCH - 100% of monitored features drifted (PSI >= 0.2)

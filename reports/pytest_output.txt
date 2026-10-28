@@ -1,0 +1,47 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.4, pytest-9.1.1, pluggy-1.7.0 -- E:\CNS\weather_mlops\.venv\Scripts\python.exe
+rootdir: E:\CNS\weather_mlops
+plugins: anyio-4.15.1
+collecting ... collected 7 items
+
+tests/test_pipeline.py::test_clean_removes_duplicates_and_bad_values PASSED [ 14%]
+tests/test_pipeline.py::test_features_have_no_leakage PASSED             [ 28%]
+tests/test_pipeline.py::test_psi_same_vs_shifted PASSED                  [ 42%]
+tests/test_pipeline.py::test_drift_table_flags_shifted_feature PASSED    [ 57%]
+tests/test_pipeline.py::test_api_health_and_predict PASSED               [ 71%]
+tests/test_pipeline.py::test_api_rejects_bad_input PASSED                [ 85%]
+tests/test_pipeline.py::test_dashboard_page_and_job_guards PASSED        [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:64
+  E:\CNS\weather_mlops\.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:64: PyparsingDeprecationWarning: 'oneOf' deprecated - use 'one_of'
+    prop = Group((name + Suppress("=") + comma_separated(value)) | oneOf(_CONSTANTS))
+
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85
+  E:\CNS\weather_mlops\.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:85: PyparsingDeprecationWarning: 'parseString' deprecated - use 'parse_string'
+    parse = parser.parseString(pattern)
+
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89
+.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89
+  E:\CNS\weather_mlops\.venv\Lib\site-packages\matplotlib\_fontconfig_pattern.py:89: PyparsingDeprecationWarning: 'resetCache' deprecated - use 'reset_cache'
+    parser.resetCache()
+
+tests/test_pipeline.py::test_api_health_and_predict
+  E:\CNS\weather_mlops\.venv\Lib\site-packages\starlette\formparsers.py:12: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+tests/test_pipeline.py::test_api_health_and_predict
+  E:\CNS\weather_mlops\.venv\Lib\site-packages\starlette\testclient.py:41: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    [], typing.ContextManager[anyio.abc.BlockingPortal]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 7 passed, 15 warnings in 2.96s ========================

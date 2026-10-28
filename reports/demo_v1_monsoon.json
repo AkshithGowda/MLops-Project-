@@ -1,0 +1,86 @@
+{
+  "window": [
+    "2026-06-15",
+    "2026-09-15"
+  ],
+  "rows": 279,
+  "model": "ridge",
+  "model_trained_on": {
+    "train_start": "2021-01-07",
+    "train_end": "2025-12-23",
+    "test_start": "2025-12-24",
+    "test_end": "2026-05-31",
+    "months": [
+      12,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "train_rows": 2691,
+    "test_rows": 477
+  },
+  "reference": "all training rows (the model has no training data for these months)",
+  "drift": {
+    "tmax": {
+      "psi": 4.019,
+      "ks_p_value": 9.92e-88,
+      "ref_mean": 31.44,
+      "cur_mean": 28.98,
+      "drifted": true
+    },
+    "tmin": {
+      "psi": 1.969,
+      "ks_p_value": 1.7e-09,
+      "ref_mean": 21.92,
+      "cur_mean": 22.75,
+      "drifted": true
+    },
+    "precip": {
+      "psi": 2.235,
+      "ks_p_value": 1.84e-97,
+      "ref_mean": 3.07,
+      "cur_mean": 14.63,
+      "drifted": true
+    },
+    "wind": {
+      "psi": 0.119,
+      "ks_p_value": 0.0183,
+      "ref_mean": 16.7,
+      "cur_mean": 16.6,
+      "drifted": false
+    },
+    "radiation": {
+      "psi": 0.202,
+      "ks_p_value": 8.66e-07,
+      "ref_mean": 20.76,
+      "cur_mean": 19.27,
+      "drifted": true
+    },
+    "tmax_roll7": {
+      "psi": 5.752,
+      "ks_p_value": 9.87e-117,
+      "ref_mean": 31.43,
+      "cur_mean": 28.93,
+      "drifted": true
+    },
+    "precip_roll7": {
+      "psi": 5.112,
+      "ks_p_value": 1.39e-97,
+      "ref_mean": 2.91,
+      "cur_mean": 14.84,
+      "drifted": true
+    }
+  },
+  "share_features_drifted": 0.86,
+  "live_mae": 0.944,
+  "persistence_baseline_mae": 0.83,
+  "training_test_mae": 0.78,
+  "mae_ratio": 1.21,
+  "decision": "RETRAIN",
+  "reasons": [
+    "86% of monitored features drifted (PSI >= 0.2)",
+    "live MAE is already 1.21x the training MAE"
+  ]
+}

@@ -1,0 +1,16 @@
+GET /health
+{"status":"ok","model":"ridge","trained_at":"2026-10-26T13:47:29.80258+05:30"}
+
+GET /forecast/Udupi
+{"city":"Udupi","based_on_date":"2026-10-20","forecast_for":"2026-10-21","predicted_tmax_c":31.36,"model":"ridge"}
+
+GET /forecast/Bengaluru
+{"city":"Bengaluru","based_on_date":"2026-10-20","forecast_for":"2026-10-21","predicted_tmax_c":28.76,"model":"ridge"}
+
+POST /predict  (Mangaluru, July day)
+{"city":"Mangaluru","predicted_tmax_next_day_c":28.45,"model":"ridge","model_version":10}
+
+POST /predict  (city = Atlantis)
+HTTP 422 Unprocessable Entity (input validation rejected the request)
+
+predictions logged: 3

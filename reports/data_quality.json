@@ -1,0 +1,13 @@
+{
+  "rows_in": 6357,
+  "duplicates_removed": 0,
+  "out_of_range_values_nulled": 0,
+  "missing_values_interpolated": 0,
+  "rows_dropped_unfixable": 0,
+  "rows_out": 6357,
+  "gold_rows": 6339,
+  "date_range": [
+    "2021-01-01",
+    "2026-10-20"
+  ]
+}
