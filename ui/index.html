@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weather MLOps Dashboard</title>
+<style>
+:root {
+  --bg: #f4f6f8; --card: #ffffff; --ink: #1b2430; --muted: #5d6b7a; --line: #dde3ea;
+  --accent: #0f766e; --accent-soft: #e2f3f1; --gold: #b7791f; --blue: #1d4f91;
+  --ok: #15803d; --watch: #b45309; --bad: #b91c1c;
+  --ok-bg: #e4f4ea; --watch-bg: #fdf0dc; --bad-bg: #fbe6e6;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 48px; }
+header { background: var(--card); border-bottom: 1px solid var(--line); }
+header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
+header h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+header p { margin: 0; color: var(--muted); font-size: 13px; }
+.spacer { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #eceff3; color: var(--muted); white-space: nowrap; }
+.pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.watch { background: var(--watch-bg); color: var(--watch); }
+.pill.bad, .pill.retrain { background: var(--bad-bg); color: var(--bad); } .pill.run { background: var(--accent-soft); color: var(--accent); }
+h2 { font-size: 17px; margin: 32px 0 4px; display: flex; align-items: center; gap: 10px; }
+h2 small { font-weight: 400; color: var(--muted); font-size: 13px; }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 14px; }
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover:not(:disabled) { background: #0b5f58; color: #fff; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+button.tab { border-radius: 999px; padding: 5px 16px; }
+button.tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* pipeline flow */
+.flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 26px; }
+.stage { position: relative; padding: 14px 14px 12px; border-top: 4px solid var(--line); transition: border-color .3s, box-shadow .3s; }
+.stage:not(:last-child)::after { content: "\2192"; position: absolute; right: -22px; top: 46%; color: var(--muted); font-size: 20px; }
+.stage .no { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+.stage h3 { margin: 2px 0 2px; font-size: 16px; }
+.stage .what { font-size: 12px; color: var(--muted); min-height: 34px; }
+.stage .big { font-size: 24px; font-weight: 700; margin-top: 8px; line-height: 1.15; word-break: break-word; }
+.stage .small { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.stage.has { border-top-color: var(--accent); }
+.stage.running { border-top-color: var(--gold); box-shadow: 0 0 0 3px #f3dcae; animation: pulse 1.1s ease-in-out infinite; }
+.stage.done { border-top-color: var(--ok); }
+.stage.running .no::after { content: " \2022 running"; color: var(--gold); font-weight: 700; }
+.stage.done .no::after { content: " \2713 finished"; color: var(--ok); font-weight: 700; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px #f8ecd2; } }
+.layers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.layers span { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 9px; }
+
+/* run controls + terminal */
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.controls .sep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
+.term { margin-top: 12px; background: #fbfcfd; border: 1px solid var(--line); border-radius: 8px; height: 300px; overflow: auto; padding: 10px 12px; font: 12.5px/1.5 Consolas, "Cascadia Mono", monospace; white-space: pre-wrap; word-break: break-word; }
+.term .ln-dec-ok, .term .ln-ok { color: var(--ok); } .term .ln-watch { color: var(--watch); } .term .ln-bad { color: var(--bad); }
+.term .ln-step { color: var(--blue); font-weight: 700; } .term .ln-cmd { color: var(--muted); }
+.term .empty { color: var(--muted); font-family: inherit; }
+.jobbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 12px; font-size: 13px; color: var(--muted); }
+
+/* forecast + charts */
+.two { display: grid; grid-template-columns: 300px 1fr; gap: 16px; }
+.two.even { grid-template-columns: 1fr 1fr; }
+.temp { font-size: 56px; font-weight: 700; line-height: 1; color: var(--accent); }
+.temp small { font-size: 22px; font-weight: 600; color: var(--muted); }
+.kv { margin-top: 12px; font-size: 13px; color: var(--muted); display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+.kv b { color: var(--ink); font-weight: 600; text-align: right; }
+pre.json { margin: 12px 0 0; background: #fbfcfd; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 12px/1.45 Consolas, monospace; overflow: auto; max-height: 150px; }
+.chartbox { position: relative; }
+svg { display: block; width: 100%; height: auto; }
+svg text { font-family: inherit; fill: var(--muted); font-size: 11px; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+.tip { position: absolute; pointer-events: none; background: #1b2430; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; display: none; white-space: nowrap; z-index: 2; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.best td { background: var(--ok-bg); font-weight: 600; }
+.reasons { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
+.note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+footer { margin-top: 36px; font-size: 13px; color: var(--muted); }
+footer code { background: #e9edf1; padding: 1px 6px; border-radius: 4px; }
+a { color: var(--accent); }
+
+@media (max-width: 960px) {
+  .flow { grid-template-columns: repeat(2, 1fr); gap: 14px; } .stage:not(:last-child)::after { display: none; }
+  .two, .two.even { grid-template-columns: 1fr; }
+}
+@media (max-width: 520px) { .flow { grid-template-columns: 1fr; } .temp { font-size: 46px; } .term { height: 240px; } }
+@media (prefers-reduced-motion: reduce) { .stage.running { animation: none; } }
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <div><h1>Coastal Karnataka Weather MLOps</h1><p>Next-day maximum temperature &middot; Udupi, Mangaluru, Bengaluru &middot; Data Engineering and MLOps (BAD714C)</p></div>
+  <div class="spacer"></div>
+  <span class="pill" id="modelChip">no model yet</span>
+  <span class="pill" id="decisionChip">monitor: n/a</span>
+  <button id="refresh" title="Reload all panels">Refresh</button>
+</div></header>
+
+<main class="wrap">
+  <h2>1. The pipeline <small>what is stored at every stage right now</small></h2>
+  <p class="sub">Data moves left to right. Each box fills in from the files on disk and lights up while its step is running.</p>
+  <div class="flow" id="flow"></div>
+  <div class="layers"><span>Bronze = raw JSON from the API</span><span>Silver = cleaned, validated table</span><span>Gold = model-ready features + label</span></div>
+
+  <h2>2. Run it <small>start any step and watch the log</small></h2>
+  <div class="card">
+    <div class="controls" id="controls">
+      <button data-step="ingest">1 Ingest</button>
+      <button data-step="transform">2 Transform</button>
+      <button data-step="train">3 Train</button>
+      <button data-step="monitor">4 Monitor</button>
+      <span class="sep"></span>
+      <button class="primary" data-step="all">Run whole pipeline</button>
+      <button data-step="all-auto">Whole pipeline + auto-retrain</button>
+      <button data-step="demo" title="Trains on dry-season data, monitors the monsoon, retrains. Takes a few minutes.">Drift demo</button>
+    </div>
+    <div class="jobbar"><span class="pill" id="jobState">idle</span><span id="jobInfo">Pick a step above. Ingest needs internet the first time; later runs reuse the saved files.</span></div>
+    <div class="term" id="term"><span class="empty">The command output will appear here.</span></div>
+  </div>
+
+  <h2>3. Forecast <small>served by the model through the API</small></h2>
+  <div class="card">
+    <div class="controls" id="cityTabs"></div>
+    <div class="two" style="margin-top:14px">
+      <div>
+        <div class="sub" style="margin:0">Tomorrow's maximum temperature</div>
+        <div class="temp" id="fcTemp">&ndash;<small> &deg;C</small></div>
+        <div class="kv" id="fcKv"></div>
+        <div style="margin-top:12px"><button class="primary" id="askApi">Ask the API</button></div>
+        <pre class="json" id="apiOut" hidden></pre>
+      </div>
+      <div>
+        <div class="legend"><span><i style="background:#1b2430"></i>actual</span><span><i style="background:#b7791f"></i>model's forecast made the day before</span><span><i style="background:#0f766e"></i>tomorrow</span></div>
+        <div class="chartbox" id="cityChart"></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>4. Models <small>tracked in MLflow, newest training run</small></h2>
+  <div class="two even">
+    <div class="card"><div id="modelBars"></div><p class="note">Test error on the newest 15% of dates. Lower is better. The grey bar is the "tomorrow = today" baseline.</p></div>
+    <div class="card"><table id="modelTable"></table><p class="note" id="registryNote"></p></div>
+  </div>
+
+  <h2>5. Monitoring <small>is the model still healthy?</small></h2>
+  <div class="card" id="monitorCard"></div>
+
+  <h2>6. Prediction log <small>every forecast the API served</small></h2>
+  <div class="card"><table id="predTable"></table></div>
+
+  <footer>
+    API documentation: <a href="/docs">/docs</a> &middot; experiment tracking: run <code>mlflow ui --backend-store-uri sqlite:///mlflow.db</code> and open <a href="http://127.0.0.1:5000">127.0.0.1:5000</a>
+  </footer>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); Object.assign(e, attrs); if (html) e.innerHTML = html; return e; };
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (n, d = 2) => (n === null || n === undefined ? "n/a" : Number(n).toFixed(d));
+const when = (iso) => { if (!iso) return "n/a"; const d = new Date(iso); return isNaN(d) ? "n/a" : d.toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
+const api = async (url, opts) => { const r = await fetch(url, opts); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail || r.statusText); return j; };
+
+const STAGES = [
+  { key: "ingest", title: "Ingest", what: "Download daily weather for 3 cities from Open-Meteo (bronze layer)." },
+  { key: "transform", title: "Clean", what: "Remove duplicates, check physical limits, fill small gaps (silver layer)." },
+  { key: "features", title: "Features", what: "Build lags, rolling means, season and city columns (gold layer)." },
+  { key: "train", title: "Train", what: "Fit 3 models, compare with the baseline, track in MLflow, keep the best." },
+  { key: "serve", title: "Serve", what: "FastAPI serves the model and logs every prediction." },
+  { key: "monitor", title: "Monitor", what: "Check drift and live error, then decide: OK, WATCH or RETRAIN." },
+];
+const LOG_STAGE = { "[ingest]": "ingest", "[transform]": "transform", "[train]": "train", "[monitor]": "monitor", "[pipeline]": "train" };
+const FIRST_STAGE = { ingest: "ingest", transform: "transform", train: "train", monitor: "monitor", all: "ingest", "all-auto": "ingest", demo: "train" };
+let ov = null, city = null, job = { since: 0, timer: null, running: false, seen: [] };
+
+/* ---------- pipeline cards ---------- */
+function stageInfo(o) {
+  const q = o.quality, m = o.model, mon = o.monitor, bz = o.bronze;
+  const days = bz.reduce((a, f) => a + f.days, 0);
+  return {
+    ingest: bz.length ? [`${days.toLocaleString()} days`, `${bz.length} raw files &middot; ${when(bz[0].ingested_at)}`] : null,
+    transform: o.silver ? [`${o.silver.rows.toLocaleString()} rows`, q ? `${q.duplicates_removed} duplicates &middot; ${q.out_of_range_values_nulled} out of range &middot; ${q.missing_values_interpolated} gaps filled` : `${o.silver.from} to ${o.silver.to}`] : null,
+    features: o.gold ? [`${o.gold.rows.toLocaleString()} rows`, `${o.gold.features} features &middot; up to ${o.gold.latest}`] : null,
+    train: m ? [esc(m.model_name.replace(/_/g, " ")), `test MAE ${fmt(m.test_metrics.mae, 3)} vs baseline ${fmt(m.baseline_metrics.mae, 3)} &deg;C`] : null,
+    serve: m ? [`${o.predictions.count} served`, `registry v${m.registry_version} &middot; ${o.mlflow.versions} versions saved`] : null,
+    monitor: mon ? [mon.decision, `live MAE ${fmt(mon.live_mae, 3)} &middot; ${Math.round(mon.share_features_drifted * 100)}% features drifted`] : null,
+  };
+}
+function drawFlow() {
+  const info = ov ? stageInfo(ov) : {};
+  const box = $("#flow"); box.innerHTML = "";
+  STAGES.forEach((s, i) => {
+    const d = info[s.key];
+    const c = el("div", { className: "card stage" + (d ? " has" : "") });
+    c.dataset.key = s.key;
+    c.innerHTML = `<div class="no">Step ${i + 1}</div><h3>${s.title}</h3><div class="what">${s.what}</div>` +
+      (d ? `<div class="big">${d[0]}</div><div class="small">${d[1]}</div>` : `<div class="big" style="color:var(--muted)">empty</div><div class="small">not created yet</div>`);
+    box.appendChild(c);
+  });
+  paintRunning();
+}
+function paintRunning() {
+  document.querySelectorAll(".stage").forEach((c) => c.classList.remove("running", "done"));
+  const order = ["ingest", "transform", "features", "train", "serve", "monitor"];
+  const seen = job.seen; if (!seen.length) return;
+  const last = seen[seen.length - 1];
+  const lastIdx = order.indexOf(last === "transform" ? "features" : last);
+  seen.forEach((k) => { const c = document.querySelector(`.stage[data-key="${k}"]`); if (c && !(job.running && k === last)) c.classList.add("done"); });
+  if (seen.includes("transform")) { const g = document.querySelector('.stage[data-key="features"]'); if (g && !(job.running && last === "transform")) g.classList.add("done"); }
+  if (seen.includes("train")) { const g = document.querySelector('.stage[data-key="serve"]'); if (g && !job.running) g.classList.add("done"); }
+  if (job.running) {
+    const targets = last === "transform" ? ["transform", "features"] : [last];
+    targets.forEach((k) => document.querySelector(`.stage[data-key="${k}"]`)?.classList.add("running"));
+  }
+}
+
+/* ---------- job runner ---------- */
+function lineClass(l) {
+  if (/DECISION: OK/.test(l)) return "ln-dec-ok";
+  if (/DECISION: RETRAIN|Traceback|Error|failed/i.test(l)) return "ln-bad";
+  if (/DECISION: WATCH|DRIFT/.test(l)) return "ln-watch";
+  if (/^STEP|^={5,}/.test(l)) return "ln-step";
+  if (/best model|passed/.test(l)) return "ln-ok";
+  if (/^\$ /.test(l)) return "ln-cmd";
+  return "";
+}
+function appendLines(lines) {
+  const t = $("#term"); if (job.since === 0) t.innerHTML = "";
+  const stick = t.scrollTop + t.clientHeight >= t.scrollHeight - 30;
+  lines.forEach((l) => {
+    const m = Object.keys(LOG_STAGE).find((p) => l.startsWith(p));
+    if (m) { const k = LOG_STAGE[m]; if (job.seen[job.seen.length - 1] !== k) job.seen.push(k); }
+    const d = el("div", { className: lineClass(l) }); d.textContent = l || " "; t.appendChild(d);
+  });
+  job.since += lines.length;
+  if (stick) t.scrollTop = t.scrollHeight;
+}
+function setBusy(b) { document.querySelectorAll("#controls button").forEach((x) => (x.disabled = b)); }
+async function pollJob() {
+  try {
+    const j = await api("/api/job?since=" + job.since);
+    appendLines(j.lines);
+    const s = $("#jobState");
+    if (j.state === "running") {
+      job.running = true; s.className = "pill run"; s.textContent = "running: " + j.step;
+      $("#jobInfo").textContent = "Started " + when(j.started) + ". Boxes above light up as each step runs.";
+    } else if (j.state !== "idle") {
+      job.running = false; s.className = "pill " + (j.state === "done" ? "ok" : "bad"); s.textContent = j.state === "done" ? "finished" : "failed";
+      $("#jobInfo").textContent = (j.state === "done" ? "Finished " : "Stopped with exit code " + j.returncode + " at ") + when(j.ended) + ".";
+      clearInterval(job.timer); job.timer = null; setBusy(false); paintRunning(); await loadAll(); return;
+    }
+    paintRunning();
+  } catch (e) { $("#jobInfo").textContent = "Lost contact with the server: " + e.message; }
+}
+function watchJob() { setBusy(true); if (!job.timer) job.timer = setInterval(pollJob, 700); pollJob(); }
+async function startStep(step) {
+  try {
+    await api("/api/run/" + step, { method: "POST" });
+    job = { since: 0, timer: job.timer, running: true, seen: [FIRST_STAGE[step]] }; $("#term").innerHTML = ""; watchJob();
+  } catch (e) { $("#jobInfo").textContent = e.message; }
+}
+
+/* ---------- chart ---------- */
+function lineChart(target, hist, fc) {
+  const W = 700, H = 280, P = { l: 40, r: 16, t: 14, b: 28 };
+  const pts = hist.concat([{ date: fc.date, predicted: fc.value, actual: null, tomorrow: true }]);
+  const vals = pts.flatMap((p) => [p.actual, p.predicted]).filter((v) => v !== null);
+  let lo = Math.floor(Math.min(...vals)) - 1, hi = Math.ceil(Math.max(...vals)) + 1;
+  const x = (i) => P.l + (i / (pts.length - 1)) * (W - P.l - P.r), y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
+  let g = "";
+  for (let v = lo; v <= hi; v += Math.max(1, Math.round((hi - lo) / 5))) g += `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v)}" y2="${y(v)}" stroke="#e5eaf0"/><text x="${P.l - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  const ticks = [0, Math.floor(pts.length / 3), Math.floor((2 * pts.length) / 3), pts.length - 1];
+  ticks.forEach((i) => (g += `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"}">${pts[i].date.slice(5)}</text>`));
+  const path = (key, n) => pts.slice(0, n).map((p, i) => (p[key] === null ? null : `${i && pts[i - 1][key] !== null ? "L" : "M"}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`)).filter(Boolean).join(" ");
+  const n = hist.length, last = pts[n - 1], tm = pts[n];
+  g += `<path d="${path("actual", n)}" fill="none" stroke="#1b2430" stroke-width="1.8"/><path d="${path("predicted", n)}" fill="none" stroke="#b7791f" stroke-width="1.8"/>`;
+  g += `<path d="M${x(n - 1)},${y(last.predicted)} L${x(n)},${y(tm.predicted)}" stroke="#0f766e" stroke-width="2" stroke-dasharray="4 3"/><circle cx="${x(n)}" cy="${y(tm.predicted)}" r="6" fill="#0f766e"/>`;
+  g += `<text x="${x(n)}" y="${P.t + 4}" text-anchor="end" style="fill:#0f766e;font-weight:700;font-size:12px">tomorrow ${fmt(tm.predicted, 1)}&deg;C</text>`;
+  g += `<line id="cur" y1="${P.t}" y2="${H - P.b}" stroke="#9aa6b2" stroke-dasharray="3 3" visibility="hidden"/><rect id="hit" x="${P.l}" y="${P.t}" width="${W - P.l - P.r}" height="${H - P.t - P.b}" fill="transparent"/>`;
+  target.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Actual and predicted maximum temperature">${g}</svg><div class="tip"></div>`;
+  const svg = target.querySelector("svg"), tip = target.querySelector(".tip"), cur = target.querySelector("#cur");
+  svg.querySelector("#hit").addEventListener("mousemove", (ev) => {
+    const r = svg.getBoundingClientRect(), px = ((ev.clientX - r.left) / r.width) * W;
+    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((px - P.l) / (W - P.l - P.r)) * (pts.length - 1)))), p = pts[i];
+    cur.setAttribute("x1", x(i)); cur.setAttribute("x2", x(i)); cur.setAttribute("visibility", "visible");
+    tip.style.display = "block"; tip.style.left = Math.min(ev.clientX - r.left + 12, r.width - 150) + "px"; tip.style.top = "4px";
+    tip.textContent = `${p.date}  actual ${p.actual === null ? "?" : fmt(p.actual, 1)}  forecast ${fmt(p.predicted, 1)}`;
+  });
+  svg.querySelector("#hit").addEventListener("mouseleave", () => { tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); });
+}
+
+/* ---------- panels ---------- */
+function drawCityTabs() {
+  const box = $("#cityTabs"); box.innerHTML = "";
+  (ov?.cities || []).forEach((c) => {
+    const b = el("button", { className: "tab" + (c === city ? " on" : ""), textContent: c });
+    b.onclick = () => { city = c; drawCityTabs(); loadCity(); }; box.appendChild(b);
+  });
+}
+async function loadCity() {
+  if (!city) return;
+  try {
+    const d = await api("/api/city/" + city);
+    $("#fcTemp").innerHTML = `${fmt(d.forecast, 1)}<small> &deg;C</small>`;
+    $("#fcKv").innerHTML = `<span>City</span><b>${esc(d.city)}</b><span>For</span><b>${d.forecast_for}</b><span>Based on</span><b>${d.based_on_date} (${fmt(d.today_tmax, 1)} &deg;C)</b><span>Model</span><b>${esc(d.model.replace(/_/g, " "))}</b>`;
+    lineChart($("#cityChart"), d.history, { date: d.forecast_for, value: d.forecast });
+  } catch (e) {
+    $("#fcTemp").innerHTML = `&ndash;<small> &deg;C</small>`; $("#fcKv").textContent = e.message; $("#cityChart").innerHTML = `<p class="note">${esc(e.message)}</p>`;
+  }
+}
+function drawModels() {
+  const r = ov.mlflow.runs, bars = $("#modelBars"), tbl = $("#modelTable");
+  if (!r.length) { bars.innerHTML = '<p class="note">No MLflow runs yet. Run the Train step.</p>'; tbl.innerHTML = ""; return; }
+  const maes = r.map((x) => x.mae), best = Math.min(...r.filter((x) => x.name !== "baseline_persistence").map((x) => x.mae)), top = Math.max(...maes);
+  bars.innerHTML = r.map((x) => {
+    const base = x.name === "baseline_persistence", win = x.mae === best && !base;
+    return `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${esc(x.name.replace(/_/g, " "))}${win ? " &#9733;" : ""}</span><b>${fmt(x.mae, 3)} &deg;C</b></div>
+      <div style="background:#eceff3;border-radius:5px;height:14px"><div style="height:14px;border-radius:5px;width:${(x.mae / top) * 100}%;background:${base ? "#98a2ae" : win ? "#15803d" : "#4b8fd0"}"></div></div></div>`;
+  }).join("");
+  tbl.innerHTML = `<tr><th>Run</th><th>ID</th><th class="num">MAE</th><th class="num">RMSE</th><th class="num">R&sup2;</th></tr>` +
+    r.map((x) => `<tr class="${x.mae === best && x.name !== "baseline_persistence" ? "best" : ""}"><td>${esc(x.name.replace(/_/g, " "))}</td><td>${x.run_id}</td><td class="num">${fmt(x.mae, 3)}</td><td class="num">${fmt(x.rmse, 3)}</td><td class="num">${fmt(x.r2, 3)}</td></tr>`).join("");
+  $("#registryNote").textContent = `${ov.mlflow.versions} model versions are saved in the MLflow registry "temp-forecaster". The highlighted row is the one served.`;
+}
+function drawMonitor() {
+  const m = ov.monitor, box = $("#monitorCard");
+  if (!m) { box.innerHTML = '<p class="note" style="margin:0">No monitoring report yet. Run the Monitor step.</p>'; return; }
+  const feats = Object.entries(m.drift), maxP = Math.max(0.5, ...feats.map(([, v]) => v.psi)) * 1.1;
+  const maes = [["Training test error", m.training_test_mae, "#4b8fd0"], ["Live error (this window)", m.live_mae, m.mae_ratio >= 1.25 ? "#b91c1c" : "#15803d"], ["Baseline (tomorrow = today)", m.persistence_baseline_mae, "#98a2ae"]];
+  const topM = Math.max(...maes.map((x) => x[1])) * 1.05;
+  box.innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center"><span class="pill ${m.decision.toLowerCase()}" style="font-size:16px;padding:5px 16px">${m.decision}</span>
+      <span class="sub" style="margin:0">Window ${m.window[0]} to ${m.window[1]} &middot; ${m.rows} rows &middot; compared with: ${esc(m.reference)}</span></div>
+    ${m.reasons.length ? `<ul class="reasons">${m.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : '<p class="note">No drift or accuracy loss detected.</p>'}
+    <div class="two even" style="margin-top:14px">
+      <div><b style="font-size:13px">Input drift (PSI per feature, 0.2 = drifted)</b>
+        ${feats.map(([k, v]) => `<div style="margin:6px 0;font-size:12px"><div style="display:flex;justify-content:space-between"><span>${k}</span><span>${v.psi}${v.drifted ? " &middot; drifted" : ""}</span></div>
+          <div style="position:relative;background:#eceff3;border-radius:4px;height:11px"><div style="height:11px;border-radius:4px;width:${(v.psi / maxP) * 100}%;background:${v.drifted ? "#b91c1c" : "#15803d"}"></div>
+          <div style="position:absolute;top:-2px;bottom:-2px;left:${(0.2 / maxP) * 100}%;border-left:2px dashed #1b2430"></div></div></div>`).join("")}</div>
+      <div><b style="font-size:13px">Prediction error (mean absolute, &deg;C)</b>
+        ${maes.map(([k, v, c]) => `<div style="margin:6px 0;font-size:12px"><div style="display:flex;justify-content:space-between"><span>${k}</span><span>${fmt(v, 3)}</span></div>
+          <div style="background:#eceff3;border-radius:4px;height:11px"><div style="height:11px;border-radius:4px;width:${(v / topM) * 100}%;background:${c}"></div></div></div>`).join("")}
+        <p class="note">Live error is ${fmt(m.mae_ratio, 2)}&times; the training error. RETRAIN at 1.25&times; or more, or when drift and a worse error occur together.</p></div>
+    </div>`;
+}
+function drawPreds() {
+  const p = ov.predictions, t = $("#predTable");
+  t.innerHTML = p.recent.length
+    ? `<tr><th>Time</th><th>Source</th><th>City</th><th class="num">Forecast &deg;C</th><th class="num">Model</th></tr>` + p.recent.map((r) => `<tr><td>${when(r.ts)}</td><td>${esc(r.source)}</td><td>${esc(r.city)}</td><td class="num">${fmt(r.prediction, 2)}</td><td class="num">v${r.model_version}</td></tr>`).join("") +
+      `<tr><td colspan="5" class="note">${p.count} predictions logged in total. They are appended to data/predictions/log.jsonl.</td></tr>`
+    : '<tr><td class="note">Nothing served yet. Press "Ask the API" above.</td></tr>';
+}
+function drawHeader() {
+  const m = ov.model;
+  $("#modelChip").textContent = m ? `${m.model_name.replace(/_/g, " ")} · v${m.registry_version}` : "no model yet";
+  const d = ov.monitor?.decision, c = $("#decisionChip"); c.textContent = d ? "monitor: " + d : "monitor: n/a"; c.className = "pill " + (d ? d.toLowerCase() : "");
+}
+async function loadAll() {
+  try { ov = await api("/api/overview"); } catch (e) { $("#jobInfo").textContent = e.message; return; }
+  if (!city || !ov.cities.includes(city)) city = ov.cities[0];
+  drawHeader(); drawFlow(); drawCityTabs(); drawModels(); drawMonitor(); drawPreds(); loadCity();
+}
+
+document.querySelectorAll("#controls button").forEach((b) => (b.onclick = () => startStep(b.dataset.step)));
+$("#refresh").onclick = loadAll;
+$("#askApi").onclick = async () => {
+  const out = $("#apiOut"); out.hidden = false; out.textContent = `GET /forecast/${city} ...`;
+  try { const j = await api("/forecast/" + city); out.textContent = `GET /forecast/${city}\n` + JSON.stringify(j, null, 2); } catch (e) { out.textContent = "Error: " + e.message; }
+  try { ov.predictions = (await api("/api/overview")).predictions; drawPreds(); } catch (e) { /* the table just stays as it was */ }
+};
+loadAll();
+// reopening the page keeps the log of the last job and re-attaches to one that is still running
+api("/api/job").then((j) => { if (j.state === "running") watchJob(); else if (j.state !== "idle") pollJob(); }).catch(() => {});
+</script>
+</body>
+</html>

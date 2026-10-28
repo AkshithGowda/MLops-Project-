@@ -1,0 +1,54 @@
+====================================================================== 
+STEP 1: train v1 on dry-season data only (months 12,1,2,3,4,5)
+======================================================================
+[train] 2691 train rows, 477 test rows, window 2021-01-07..2026-05-31
+[train] baseline persistence   MAE=0.851  RMSE=1.114  R2=0.745
+[train] ridge                    MAE=0.780  RMSE=1.018  R2=0.787
+[train] random_forest            MAE=0.786  RMSE=1.036  R2=0.780
+[train] hist_gradient_boosting   MAE=0.829  RMSE=1.077  R2=0.762
+[train] best model: ridge (registry v8), MAE 0.780 vs baseline 0.851
+====================================================================== 
+STEP 2: monitor v1 on the monsoon window
+======================================================================
+[monitor] window 2026-06-15 .. 2026-09-15 (279 rows), model ridge
+[monitor] reference: all training rows (the model has no training data for these months)
+[monitor]   tmax          PSI=4.019  KS p=9.92e-88  mean 31.44 -> 28.98   DRIFT
+[monitor]   tmin          PSI=1.969  KS p=1.7e-09   mean 21.92 -> 22.75   DRIFT
+[monitor]   precip        PSI=2.235  KS p=1.84e-97  mean 3.07 -> 14.63   DRIFT
+[monitor]   wind          PSI=0.119  KS p=0.0183    mean 16.7 -> 16.6
+[monitor]   radiation     PSI=0.202  KS p=8.66e-07  mean 20.76 -> 19.27   DRIFT
+[monitor]   tmax_roll7    PSI=5.752  KS p=9.87e-117 mean 31.43 -> 28.93   DRIFT
+[monitor]   precip_roll7  PSI=5.112  KS p=1.39e-97  mean 2.91 -> 14.84   DRIFT
+[monitor] live MAE 0.944 (training 0.78, persistence 0.83)
+[monitor] DECISION: RETRAIN - 86% of monitored features drifted (PSI >= 0.2); live MAE is already 1.21x the training MAE
+====================================================================== 
+STEP 3: retrain on all data before the window, monitor again
+======================================================================
+[train] 5061 train rows, 894 test rows, window 2021-01-07..2026-06-14
+[train] baseline persistence   MAE=0.876  RMSE=1.160  R2=0.815
+[train] ridge                    MAE=0.790  RMSE=1.051  R2=0.848
+[train] random_forest            MAE=0.785  RMSE=1.042  R2=0.851
+[train] hist_gradient_boosting   MAE=0.788  RMSE=1.051  R2=0.848
+[train] best model: random_forest (registry v9), MAE 0.785 vs baseline 0.876
+[monitor] window 2026-06-15 .. 2026-09-15 (279 rows), model random_forest
+[monitor] reference: season-matched training rows (1707)
+[monitor]   tmax          PSI=1.063  KS p=1.75e-45  mean 27.73 -> 28.98   DRIFT
+[monitor]   tmin          PSI=0.49   KS p=1.17e-06  mean 22.43 -> 22.75   DRIFT
+[monitor]   precip        PSI=0.047  KS p=0.0355    mean 16.56 -> 14.63
+[monitor]   wind          PSI=0.162  KS p=3.86e-05  mean 18.15 -> 16.6
+[monitor]   radiation     PSI=0.591  KS p=1.44e-21  mean 15.92 -> 19.27   DRIFT
+[monitor]   tmax_roll7    PSI=2.859  KS p=1.62e-57  mean 27.79 -> 28.93   DRIFT
+[monitor]   precip_roll7  PSI=0.088  KS p=0.00606   mean 16.6 -> 14.84
+[monitor] live MAE 0.805 (training 0.785, persistence 0.83)
+[monitor] DECISION: WATCH - 57% of monitored features drifted (PSI >= 0.2)
+====================================================================== 
+STEP 4: final production model on all data
+======================================================================
+[train] 5385 train rows, 951 test rows, window 2021-01-07..2026-10-19
+[train] baseline persistence   MAE=0.886  RMSE=1.190  R2=0.741
+[train] ridge                    MAE=0.831  RMSE=1.101  R2=0.778
+[train] random_forest            MAE=0.834  RMSE=1.085  R2=0.785
+[train] hist_gradient_boosting   MAE=0.861  RMSE=1.120  R2=0.771
+[train] best model: ridge (registry v10), MAE 0.831 vs baseline 0.886
+
+Summary: v1 live MAE 0.944 (RETRAIN)  ->  retrained live MAE 0.805 (WATCH)
