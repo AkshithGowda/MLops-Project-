@@ -1,0 +1,44 @@
+{
+  "model_name": "ridge",
+  "registry_version": 13,
+  "run_id": "985e12d877e64b7bb9f0b058813681fb",
+  "trained_at": "2026-10-26T12:23:06.402318+00:00",
+  "features": [
+    "tmax",
+    "tmin",
+    "precip",
+    "wind",
+    "radiation",
+    "tmax_lag1",
+    "tmax_lag2",
+    "tmax_lag3",
+    "tmin_lag1",
+    "precip_lag1",
+    "tmax_roll7",
+    "precip_roll7",
+    "doy_sin",
+    "doy_cos",
+    "city_Udupi",
+    "city_Mangaluru",
+    "city_Bengaluru"
+  ],
+  "test_metrics": {
+    "mae": 0.8312064603809302,
+    "rmse": 1.100923182837814,
+    "r2": 0.7784945228618751
+  },
+  "baseline_metrics": {
+    "mae": 0.8862250262881178,
+    "rmse": 1.1896239100314905,
+    "r2": 0.7413635061750171
+  },
+  "window": {
+    "train_start": "2021-01-07",
+    "train_end": "2025-12-06",
+    "test_start": "2025-12-07",
+    "test_end": "2026-10-19",
+    "months": "all",
+    "train_rows": 5385,
+    "test_rows": 951
+  }
+}
