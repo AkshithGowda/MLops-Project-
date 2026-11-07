@@ -1,6 +1,8 @@
 """Stage 3 - model development: train several models, track them in MLflow, promote the best one."""
 import argparse
 import json
+import re
+import sqlite3
 from datetime import datetime, timezone
 
 import config  # noqa: F401  (must come before mlflow: it silences library warnings)
@@ -19,7 +21,32 @@ from sklearn.preprocessing import StandardScaler
 from config import EXPERIMENT, FEATURES, GOLD, MODELS, REGISTERED_MODEL, ROOT, TARGET
 
 
+def repair_artifact_paths():
+    """A mlflow.db created on another machine (e.g. file:///E:/...) points at folders that do not exist here.
+    Rewrite those absolute prefixes to this checkout so logging and registering models works anywhere."""
+    db = ROOT / "mlflow.db"
+    if not db.exists():
+        return
+    pat = re.compile(r"file:///[A-Za-z]:/(?:[^/]+/)*?(?=(?:mlartifacts|mlruns)(?:/|$))")
+    here = ROOT.as_uri() + "/"
+    con = sqlite3.connect(db)
+    try:
+        for (table,) in con.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall():
+            for _, col, ctype, *_rest in con.execute(f'PRAGMA table_info("{table}")').fetchall():
+                if "CHAR" not in (ctype or "").upper() and "TEXT" not in (ctype or "").upper():
+                    continue
+                rows = con.execute(f'SELECT rowid, "{col}" FROM "{table}" WHERE "{col}" LIKE \'%file:///_:/%\'').fetchall()
+                for rowid, val in rows:
+                    new = pat.sub(here, val)
+                    if new != val:
+                        con.execute(f'UPDATE "{table}" SET "{col}" = ? WHERE rowid = ?', (new, rowid))
+        con.commit()
+    finally:
+        con.close()
+
+
 def setup_mlflow():
+    repair_artifact_paths()
     mlflow.set_tracking_uri(f"sqlite:///{(ROOT / 'mlflow.db').as_posix()}")
     if mlflow.get_experiment_by_name(EXPERIMENT) is None:
         mlflow.create_experiment(EXPERIMENT, artifact_location=(ROOT / "mlartifacts").as_uri())

@@ -14,15 +14,18 @@ from datetime import datetime, timezone
 import pandas as pd
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import BRONZE, CITIES, EXPERIMENT, FEATURES, GOLD, MODELS, PREDICTIONS, REPORTS, ROOT, SILVER, TARGET
 
 router = APIRouter()
 UI_FILE = ROOT / "ui" / "index.html"
+LEGACY_UI_FILE = ROOT / "ui" / "legacy.html"
 
 # the only commands the dashboard may start (fixed list, no user-supplied arguments)
 STEPS = {
     "ingest": ["run_pipeline.py", "ingest"],
+    "live": ["run_pipeline.py", "live"],
     "transform": ["run_pipeline.py", "transform"],
     "train": ["run_pipeline.py", "train"],
     "monitor": ["run_pipeline.py", "monitor"],
@@ -62,6 +65,11 @@ def _run_job(args: list):
 @router.get("/", include_in_schema=False)
 def index():
     return FileResponse(UI_FILE)
+
+
+@router.get("/legacy", include_in_schema=False)
+def legacy():
+    return FileResponse(LEGACY_UI_FILE)
 
 
 @router.post("/api/run/{step}")
@@ -113,7 +121,7 @@ def _mlflow_runs(limit=4):
     """Read the experiment straight from the MLflow SQLite file (cheaper than importing mlflow)."""
     db = ROOT / "mlflow.db"
     if not db.exists():
-        return {"runs": [], "versions": 0}
+        return {"runs": [], "versions": 0, "history": []}
     try:
         con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
         rows = con.execute(
@@ -126,10 +134,17 @@ def _mlflow_runs(limit=4):
             runs.append({"run_id": uid[:8], "name": name, "mae": m.get("mae"), "rmse": m.get("rmse"), "r2": m.get("r2"),
                          "started": datetime.fromtimestamp(start / 1000, timezone.utc).isoformat()})
         versions = con.execute("SELECT COUNT(*) FROM model_versions").fetchone()[0]
+        history = []
+        for ver, created, run_id in con.execute(
+                "SELECT version, creation_time, run_id FROM model_versions ORDER BY version").fetchall():
+            nm = con.execute("SELECT name FROM runs WHERE run_uuid = ?", (run_id,)).fetchone()
+            mae = con.execute("SELECT value FROM latest_metrics WHERE run_uuid = ? AND key = 'mae'", (run_id,)).fetchone()
+            history.append({"v": ver, "type": nm[0] if nm else None, "mae": mae[0] if mae else None,
+                            "date": datetime.fromtimestamp(created / 1000, timezone.utc).isoformat()})
         con.close()
-        return {"runs": runs, "versions": versions}
+        return {"runs": runs, "versions": versions, "history": history}
     except sqlite3.Error:
-        return {"runs": [], "versions": 0}
+        return {"runs": [], "versions": 0, "history": []}
 
 
 def _predictions(n=12):
@@ -188,10 +203,30 @@ def city_series(city: str, days: int = 60):
     return {"city": city, "model": meta["model_name"], "based_on_date": str(last["date"].date()),
             "forecast_for": str((last["date"] + pd.Timedelta(days=1)).date()),
             "forecast": round(float(last["pred"]), 2), "today_tmax": round(float(last["tmax"]), 2),
+            "day_of_year": int(last["date"].dayofyear),
+            "features": {k: round(float(last[k]), 3) for k in FEATURES if k in last.index},
             "history": history[:-1]}
+
+
+@router.get("/api/importance")
+def importance(top: int = 8):
+    """Relative influence of each input on the champion: |coefficient| for linear models, impurity importance for trees."""
+    model, meta = _hooks["artifacts"]()
+    est = model[-1] if hasattr(model, "steps") else model
+    if hasattr(est, "coef_"):
+        vals = [abs(float(v)) for v in est.coef_]      # inputs are standardised inside the pipeline
+    elif hasattr(est, "feature_importances_"):
+        vals = [float(v) for v in est.feature_importances_]
+    else:                                              # e.g. hist gradient boosting has no built-in importances
+        return {"model": meta["model_name"], "items": []}
+    total = sum(vals) or 1.0
+    items = sorted(({"feature": f, "value": round(v / total, 4)} for f, v in zip(meta["features"], vals)),
+                   key=lambda x: -x["value"])[:max(1, top)]
+    return {"model": meta["model_name"], "items": items}
 
 
 def register(app, artifacts, on_job_finish):
     """Attach the dashboard routes to the main app. `artifacts` loads (model, metadata) or raises HTTP 503."""
     _hooks.update(artifacts=artifacts, on_finish=on_job_finish)
     app.include_router(router)
+    app.mount("/assets", StaticFiles(directory=ROOT / "ui" / "assets"), name="ui-assets")

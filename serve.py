@@ -82,6 +82,15 @@ def predict(body: WeatherToday):
             "model_version": meta.get("registry_version")}
 
 
+@app.post("/api/whatif", include_in_schema=False)
+def whatif(body: WeatherToday):
+    """Same as /predict but not written to the prediction log (the UI calls this on every edit)."""
+    model, meta = artifacts()
+    row = row_features(body.model_dump())
+    pred = float(model.predict(pd.DataFrame([row])[FEATURES])[0])
+    return {"city": body.city, "predicted_tmax_next_day_c": round(pred, 2), "model": meta["model_name"]}
+
+
 @app.get("/forecast/{city}")
 def forecast(city: str):
     """Forecast tomorrow's max temperature from the newest row of the gold feature table."""

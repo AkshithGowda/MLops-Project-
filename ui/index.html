@@ -2,382 +2,1960 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Weather MLOps Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tmax Karnataka</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-:root {
-  --bg: #f4f6f8; --card: #ffffff; --ink: #1b2430; --muted: #5d6b7a; --line: #dde3ea;
-  --accent: #0f766e; --accent-soft: #e2f3f1; --gold: #b7791f; --blue: #1d4f91;
-  --ok: #15803d; --watch: #b45309; --bad: #b91c1c;
-  --ok-bg: #e4f4ea; --watch-bg: #fdf0dc; --bad-bg: #fbe6e6;
+/* ───────────────────────── Tokens (from the pasted style reference) ───────────────────────── */
+:root{
+  --color-gallery-black:#000000; --color-charcoal-stage:#111111; --color-ink:#1d1d1f;
+  --color-porcelain:#f5f5f7; --color-paper:#ffffff; --color-steel:#86868b; --color-graphite:#6e6e73;
+  --color-control-charcoal:#333336; --color-cloud-gray:#e8e8ed; --color-apple-blue:#0071e3;
+  --color-link-blue:#0066cc; --color-pulse-red:#ff3037; --color-vital-green:#00d959;
+  --color-signal-orange:#ff791b; --color-new-orange:#b64400; --color-burnt-badge-wash:#311400;
+
+  /* chart series: validated (dark, CVD + contrast) with the dataviz validator */
+  --series-1:#3987e5; --series-2:#d95926;
+  --hair:rgba(245,245,247,.10);
+  /* chart chrome, swapped per theme */
+  --grid:rgba(245,245,247,.07); --cross:rgba(245,245,247,.4); --chart-text:#f5f5f7;
+  --ring-card:#111111; --ring-tile:#000000; --highlight:#f5f5f7; --trigger:#ff5a60;
+
+  --font-display:"SF Pro Display",-apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif;
+  --font-text:"SF Pro Text",-apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif;
+  --font-mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+
+  --radius-cards:28px; --radius-badges:5px; --radius-pill:980px; --radius-utility:36px;
+  --ease:cubic-bezier(.65,0,.2,1);
+  --gutter:clamp(16px,4vw,48px);
+  --zoom-ms:1500ms;
 }
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 48px; }
-header { background: var(--card); border-bottom: 1px solid var(--line); }
-header .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-top: 14px; padding-bottom: 14px; }
-header h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
-header p { margin: 0; color: var(--muted); font-size: 13px; }
-.spacer { flex: 1; }
-.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 11px; border-radius: 999px; font-size: 13px; font-weight: 600; background: #eceff3; color: var(--muted); white-space: nowrap; }
-.pill.ok { background: var(--ok-bg); color: var(--ok); } .pill.watch { background: var(--watch-bg); color: var(--watch); }
-.pill.bad, .pill.retrain { background: var(--bad-bg); color: var(--bad); } .pill.run { background: var(--accent-soft); color: var(--accent); }
-h2 { font-size: 17px; margin: 32px 0 4px; display: flex; align-items: center; gap: 10px; }
-h2 small { font-weight: 400; color: var(--muted); font-size: 13px; }
-.sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
-.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
-button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; padding: 7px 14px; }
-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-button.primary:hover:not(:disabled) { background: #0b5f58; color: #fff; }
-button:disabled { opacity: .5; cursor: not-allowed; }
-button.tab { border-radius: 999px; padding: 5px 16px; }
-button.tab.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--color-gallery-black);color:var(--color-porcelain);
+  font-family:var(--font-text);font-size:17px;line-height:1.47;letter-spacing:-.374px;
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+button,input,select{font:inherit;color:inherit;letter-spacing:inherit}
+:focus-visible{outline:2px solid var(--color-apple-blue);outline-offset:3px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.num{font-variant-numeric:tabular-nums}
 
-/* pipeline flow */
-.flow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 26px; }
-.stage { position: relative; padding: 14px 14px 12px; border-top: 4px solid var(--line); transition: border-color .3s, box-shadow .3s; }
-.stage:not(:last-child)::after { content: "\2192"; position: absolute; right: -22px; top: 46%; color: var(--muted); font-size: 20px; }
-.stage .no { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
-.stage h3 { margin: 2px 0 2px; font-size: 16px; }
-.stage .what { font-size: 12px; color: var(--muted); min-height: 34px; }
-.stage .big { font-size: 24px; font-weight: 700; margin-top: 8px; line-height: 1.15; word-break: break-word; }
-.stage .small { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.stage.has { border-top-color: var(--accent); }
-.stage.running { border-top-color: var(--gold); box-shadow: 0 0 0 3px #f3dcae; animation: pulse 1.1s ease-in-out infinite; }
-.stage.done { border-top-color: var(--ok); }
-.stage.running .no::after { content: " \2022 running"; color: var(--gold); font-weight: 700; }
-.stage.done .no::after { content: " \2713 finished"; color: var(--ok); font-weight: 700; }
-@keyframes pulse { 50% { box-shadow: 0 0 0 6px #f8ecd2; } }
-.layers { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--muted); }
-.layers span { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 2px 9px; }
+/* ───────────────────────── Buttons, badges ───────────────────────── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 16px;
+  border-radius:9999px;border:1px solid transparent;font-size:14px;letter-spacing:-.224px;cursor:pointer;
+  white-space:nowrap;transition:background .2s,border-color .2s,opacity .2s;text-decoration:none}
+.btn-sm{height:28px;padding:0 12px;font-size:12px;letter-spacing:-.12px}
+.btn-blue{background:var(--color-apple-blue);color:#fff}
+.btn-blue:hover{background:#0077ed}
+.btn-outline{background:transparent;border-color:rgba(245,245,247,.85);color:#fff}
+.btn-outline:hover{background:rgba(255,255,255,.08)}
+.btn-quiet{background:var(--color-control-charcoal);color:var(--color-porcelain)}
+.btn-quiet:hover{background:#424245}
+.btn[disabled]{opacity:.35;cursor:not-allowed}
+.link{color:#2997ff;background:none;border:0;padding:0;cursor:pointer;font-size:inherit;text-decoration:none}
+.link:hover{text-decoration:underline}
 
-/* run controls + terminal */
-.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.controls .sep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
-.term { margin-top: 12px; background: #fbfcfd; border: 1px solid var(--line); border-radius: 8px; height: 300px; overflow: auto; padding: 10px 12px; font: 12.5px/1.5 Consolas, "Cascadia Mono", monospace; white-space: pre-wrap; word-break: break-word; }
-.term .ln-dec-ok, .term .ln-ok { color: var(--ok); } .term .ln-watch { color: var(--watch); } .term .ln-bad { color: var(--bad); }
-.term .ln-step { color: var(--blue); font-weight: 700; } .term .ln-cmd { color: var(--muted); }
-.term .empty { color: var(--muted); font-family: inherit; }
-.jobbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 6px;border-radius:var(--radius-badges);
+  font-size:12px;font-weight:600;line-height:16px;letter-spacing:-.12px;white-space:nowrap}
+.badge .ic{font-size:11px;line-height:1}
+.badge.ok{background:#002a12;color:var(--color-vital-green)}
+.badge.watch,.badge.soon{background:var(--color-burnt-badge-wash);color:var(--color-signal-orange)}
+.badge.retrain{background:#3b0608;color:#ff5a60}
+.badge.champ{background:var(--color-porcelain);color:var(--color-ink)}
+.badge.neutral{background:var(--color-control-charcoal);color:var(--color-porcelain)}
 
-/* forecast + charts */
-.two { display: grid; grid-template-columns: 300px 1fr; gap: 16px; }
-.two.even { grid-template-columns: 1fr 1fr; }
-.temp { font-size: 56px; font-weight: 700; line-height: 1; color: var(--accent); }
-.temp small { font-size: 22px; font-weight: 600; color: var(--muted); }
-.kv { margin-top: 12px; font-size: 13px; color: var(--muted); display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
-.kv b { color: var(--ink); font-weight: 600; text-align: right; }
-pre.json { margin: 12px 0 0; background: #fbfcfd; border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 12px/1.45 Consolas, monospace; overflow: auto; max-height: 150px; }
-.chartbox { position: relative; }
-svg { display: block; width: 100%; height: auto; }
-svg text { font-family: inherit; fill: var(--muted); font-size: 11px; }
-.legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 6px; flex-wrap: wrap; }
-.legend i { display: inline-block; width: 18px; height: 3px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
-.tip { position: absolute; pointer-events: none; background: #1b2430; color: #fff; font-size: 12px; padding: 4px 8px; border-radius: 6px; display: none; white-space: nowrap; z-index: 2; }
+/* RETRAIN alert banner */
+.alert{position:fixed;left:0;right:0;top:0;height:44px;z-index:95;display:none;align-items:center;justify-content:center;
+  gap:14px;padding:0 var(--gutter);background:#2a0406;color:var(--color-porcelain);font-size:14px;letter-spacing:-.224px;
+  border-bottom:1px solid rgba(255,48,55,.35)}
+body.retrain .alert{display:flex}
+.alert .msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:640px){.alert .long{display:none}}
 
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
-th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
-td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-tr.best td { background: var(--ok-bg); font-weight: 600; }
-.reasons { margin: 8px 0 0; padding-left: 18px; font-size: 13px; }
-.note { font-size: 12px; color: var(--muted); margin-top: 8px; }
-footer { margin-top: 36px; font-size: 13px; color: var(--muted); }
-footer code { background: #e9edf1; padding: 1px 6px; border-radius: 4px; }
-a { color: var(--accent); }
+/* ───────────────────────── Home: the globe ───────────────────────── */
+.home{position:fixed;inset:0;overflow:hidden;background:#000}
+.stage{position:absolute;transform-origin:50% 50%;
+  transition:transform var(--zoom-ms) var(--ease),filter var(--zoom-ms) var(--ease);will-change:transform}
+.stage img{display:block;width:100%;height:100%;user-select:none;-webkit-user-drag:none}
+.home.zooming .stage{filter:brightness(1.15) saturate(1.1) blur(1.2px)}
+.home-shade{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top,rgba(0,0,0,.55),rgba(0,0,0,0) 38%),
+             linear-gradient(to bottom,rgba(0,0,0,.45),rgba(0,0,0,0) 16%);transition:opacity .8s}
+.home.zooming .home-shade{opacity:0}
 
-@media (max-width: 960px) {
-  .flow { grid-template-columns: repeat(2, 1fr); gap: 14px; } .stage:not(:last-child)::after { display: none; }
-  .two, .two.even { grid-template-columns: 1fr; }
+/* 3D globe (NASA Black Marble tiles) */
+.globe{position:absolute;inset:0;opacity:0;transition:opacity 1.4s var(--ease);touch-action:none;cursor:grab}
+.globe.ready{opacity:1}
+.home.globe-mode .stage{transition:opacity 1.4s var(--ease)}
+.home.globe-ready .stage{opacity:0;pointer-events:none}
+.gpin{position:relative;width:32px;height:32px;pointer-events:none}
+.gpin .pin{left:50%;top:50%;pointer-events:auto}
+.globe-hint{position:absolute;left:50%;top:18px;transform:translateX(-50%);font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.55);
+  pointer-events:none;opacity:0;transition:opacity .8s}
+.home.globe-ready .globe-hint{opacity:1}
+.home.globe-ready.moved .globe-hint,.home.zooming .globe-hint{opacity:0}
+@media (max-width:760px){.globe-hint{display:none}}
+
+/* blinking red marker */
+.pin{position:absolute;width:32px;height:32px;margin:-16px 0 0 -16px;padding:0;border:0;border-radius:50%;
+  background:transparent;cursor:pointer;z-index:2;transform:scale(var(--inv,1));
+  transition:transform var(--zoom-ms) var(--ease),opacity .5s 1s}
+.home.zooming .pin{transition-delay:0s}
+.pin .dot,.pin .ring{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%}
+.pin .dot{background:var(--color-pulse-red);box-shadow:0 0 0 2px rgba(0,0,0,.55),0 0 14px 3px rgba(255,48,55,.75);
+  animation:blink 1.2s ease-in-out infinite}
+.pin .ring{border:2px solid var(--color-pulse-red);animation:ring 1.8s ease-out infinite;pointer-events:none}
+.pin .ring.r2{animation-delay:.9s}
+.pin:hover .dot,.pin:focus-visible .dot{transform:scale(1.35)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes ring{0%{transform:scale(1);opacity:.95}100%{transform:scale(4.4);opacity:0}}
+.pin-label{position:absolute;top:50%;left:calc(100% - 2px);transform:translateY(-50%);display:flex;align-items:baseline;gap:8px;
+  padding:5px 11px;border-radius:var(--radius-pill);white-space:nowrap;pointer-events:none;
+  background:rgba(0,0,0,.62);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(245,245,247,.2);font-size:12px;font-weight:600;line-height:16px;letter-spacing:-.12px;
+  transition:background .2s,border-color .2s,opacity .4s}
+.home.zooming .pin-label{pointer-events:none}
+.pin-label .t{font-weight:400;color:rgba(245,245,247,.72)}
+.pin[data-side="left"] .pin-label{left:auto;right:calc(100% - 2px)}
+.pin[data-city="udupi"],.pin[data-city="mangaluru"]{width:16px;height:16px;margin:-8px 0 0 -8px}
+.pin-label{pointer-events:auto}
+.pin[data-city="udupi"] .pin-label{transform:translateY(-118%)}
+.pin[data-city="mangaluru"] .pin-label{transform:translateY(18%)}
+.pin:hover .pin-label,.pin:focus-visible .pin-label{background:rgba(0,0,0,.88);border-color:rgba(245,245,247,.6)}
+.home.zooming .pin:not(.target){opacity:0;pointer-events:none}
+.home.zooming .pin .pin-label{opacity:0}
+.home.zooming .pin.target{opacity:0;transition:transform var(--zoom-ms) var(--ease),opacity .5s .7s}
+
+.home-copy{position:absolute;z-index:3;left:57%;right:var(--gutter);bottom:clamp(28px,8vh,96px);max-width:580px;
+  transition:opacity .6s var(--ease) 1s,transform .8s var(--ease) 1s}
+.home.zooming .home-copy{transition-delay:0s}
+.eyebrow{margin:0;font-size:14px;font-weight:600;letter-spacing:-.224px;color:rgba(245,245,247,.72)}
+.hero{margin:8px 0 16px;font-family:var(--font-display);font-weight:600;font-size:clamp(44px,5.4vw,80px);
+  line-height:1.05;letter-spacing:-.015em}
+.lede{margin:0 0 24px;color:rgba(245,245,247,.8);max-width:480px}
+.home-copy::before{content:"";position:absolute;inset:-25% -20% -20% -25%;z-index:-1;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(0,0,0,.55),rgba(0,0,0,0))}
+.home-capsule{display:inline-flex}
+.home.zooming .home-copy{opacity:0;transform:translateY(16px);pointer-events:none}
+
+/* Dark utility capsule */
+.capsule{display:flex;align-items:center;gap:16px;padding:8px 8px 8px 22px;border-radius:var(--radius-utility);
+  background:var(--color-control-charcoal)}
+.capsule .lines{font-size:14px;font-weight:600;line-height:18px;letter-spacing:-.224px;color:var(--color-porcelain)}
+.capsule .lines .sub{display:block;font-weight:400;font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.65)}
+
+/* ───────── Light mode (home only): daytime satellite globe on a pale sky ───────── */
+.home{transition:background .6s var(--ease)}
+.globe.swapping{opacity:0!important;transition:opacity .35s var(--ease)}
+.theme-toggle{position:absolute;z-index:5;top:16px;right:var(--gutter);width:36px;height:36px;border-radius:50%;border:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;color:var(--color-porcelain);
+  background:rgba(51,51,54,.6);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);
+  transition:background .2s,color .2s,opacity .5s}
+.theme-toggle:hover{background:rgba(66,66,69,.8)}
+.theme-toggle svg{width:18px;height:18px}
+.theme-toggle .moon,body.theme-light .theme-toggle .sun{display:none}
+body.theme-light .theme-toggle .moon{display:block}
+.lnav .theme-toggle{position:static;flex:none;width:32px;height:32px;background:var(--color-control-charcoal)}
+.home.zooming .theme-toggle{opacity:0;pointer-events:none}
+
+.home.light{background:#eef2f7}
+.home.light .stage{opacity:0}
+.home.light .home-shade{background:linear-gradient(to top,rgba(238,242,247,.35),rgba(238,242,247,0) 30%)}
+.home.light .home-copy{padding:28px 28px 24px;color:var(--color-ink)}
+/* the frosted panel lives on a pseudo-element: a backdrop-filter on .home-copy itself would trap the phone's fixed capsule inside it */
+.home.light .home-copy::before{display:block;inset:0;border-radius:var(--radius-cards);background:rgba(255,255,255,.74);
+  backdrop-filter:saturate(180%) blur(24px);-webkit-backdrop-filter:saturate(180%) blur(24px)}
+.home.light .hero{font-size:clamp(40px,4.5vw,66px)}
+.home.light .eyebrow{color:var(--color-graphite)}
+.home.light .lede{color:#424245}
+.home.light .capsule{background:var(--color-cloud-gray)}
+.home.light .capsule .lines{color:var(--color-ink)}
+.home.light .capsule .lines .sub{color:var(--color-graphite)}
+.home.light .pin .dot{box-shadow:0 0 0 2px #fff,0 0 12px 2px rgba(255,48,55,.6)}
+.home.light .pin-label{background:rgba(255,255,255,.86);color:var(--color-ink);border-color:rgba(0,0,0,.08)}
+.home.light .pin-label .t{color:var(--color-graphite)}
+.home.light .pin:hover .pin-label,.home.light .pin:focus-visible .pin-label{background:#fff;border-color:rgba(0,0,0,.25)}
+.home.light .globe-hint{color:rgba(29,29,31,.6)}
+body.theme-light .theme-toggle{background:rgba(255,255,255,.8);color:var(--color-ink)}
+body.theme-light .theme-toggle:hover{background:#fff}
+body.theme-light .lnav .theme-toggle{background:var(--color-cloud-gray)}
+body.theme-light .zoom-toast{background:rgba(255,255,255,.95);color:var(--color-ink)}
+
+@media (max-width:760px){
+  .home-copy{left:var(--gutter);right:var(--gutter);top:24px;bottom:auto}
+  .home.light .home-copy{top:64px;padding:20px}
+  .home-shade{background:linear-gradient(to bottom,rgba(0,0,0,.85),rgba(0,0,0,.4) 38%,rgba(0,0,0,0) 55%),
+                         linear-gradient(to top,rgba(0,0,0,.6),rgba(0,0,0,0) 25%)}
+  .lede{font-size:15px;margin-bottom:16px}
+  .home-copy::before{display:none}
+  .home.light .home-copy::before{display:block}
+  .home-capsule{position:fixed;left:var(--gutter);right:var(--gutter);bottom:16px;display:flex;justify-content:space-between}
 }
-@media (max-width: 520px) { .flow { grid-template-columns: 1fr; } .temp { font-size: 46px; } .term { height: 240px; } }
-@media (prefers-reduced-motion: reduce) { .stage.running { animation: none; } }
+
+/* ───────────────────────── Satellite layer ───────────────────────── */
+.sat{position:fixed;inset:0;z-index:20;background:#000;opacity:0;pointer-events:none;transition:opacity .6s var(--ease)}
+.sat.on{opacity:1}
+.sat-veil{position:fixed;inset:0;z-index:21;pointer-events:none;opacity:0;transition:opacity .9s;
+  background:radial-gradient(ellipse 90% 80% at 64% 38%,rgba(0,0,0,0) 35%,rgba(0,0,0,.6) 100%)}
+.sat.on + .sat-veil{opacity:1}
+.leaflet-container{background:#000;font:inherit}
+/* Night city view (dark mode): sharp daytime imagery dimmed to moonlight + NASA night lights + amber street grid */
+.sat .lyr-base{transition:filter .6s var(--ease)}
+.sat.night .lyr-base{filter:brightness(.3) saturate(0) sepia(.55) hue-rotate(180deg) saturate(1.8) contrast(1.1)}
+.sat .lyr-streets{mix-blend-mode:screen;opacity:.85;filter:brightness(1.4) contrast(6) sepia(1) saturate(4) hue-rotate(-12deg)}
+.sat .lyr-streets img.leaflet-tile{clip-path:inset(1px)}   /* the contrast filter turns tile-edge antialiasing into seams; trimming 1px hides them (screen blend: black adds nothing) */
+.sat .lyr-lights{mix-blend-mode:screen;opacity:.95;filter:saturate(1.2) brightness(1.15)}
+.sat-pin{position:relative;width:32px;height:32px}
+.sat-pin .dot,.sat-pin .ring{position:absolute;left:50%;top:50%;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%}
+.sat-pin .dot{background:var(--color-pulse-red);box-shadow:0 0 0 2px rgba(0,0,0,.6),0 0 18px 4px rgba(255,48,55,.8);animation:blink 1.2s ease-in-out infinite}
+.sat-pin .ring{border:2px solid var(--color-pulse-red);animation:ring 1.8s ease-out infinite}
+.sat-pin .ring.r2{animation-delay:.9s}
+
+/* ───────────────────────── City page ───────────────────────── */
+.city{position:fixed;top:0;left:0;right:0;bottom:0;z-index:30;overflow-y:auto;overflow-x:hidden;touch-action:pan-x pan-y;
+  opacity:0;visibility:hidden;transition:opacity .6s var(--ease),visibility 0s .6s;overscroll-behavior:contain;scrollbar-color:#424245 #000}
+.city.on{opacity:1;visibility:visible;transition:opacity .6s var(--ease)}
+body.retrain .city{top:44px}
+
+/* Local product nav (52px) */
+.lnav{position:sticky;top:0;z-index:10;height:52px;display:flex;align-items:center;gap:20px;padding:0 var(--gutter);
+  background:rgba(0,0,0,.6);backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);
+  border-bottom:1px solid var(--hair)}
+.lnav .ttl{font-family:var(--font-display);font-size:21px;font-weight:600;letter-spacing:.011em;white-space:nowrap}
+.lnav-links{display:flex;gap:20px;flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.lnav-links::-webkit-scrollbar{display:none}
+.lnav-links a{font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.75);text-decoration:none;white-space:nowrap;padding:6px 0}
+.lnav-links a:hover,.lnav-links a.active{color:#fff}
+.seg{display:inline-flex;padding:3px;border-radius:var(--radius-pill);background:var(--color-control-charcoal);flex:none}
+.seg button{border:0;background:transparent;border-radius:var(--radius-pill);padding:5px 12px;cursor:pointer;
+  font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.8);white-space:nowrap;transition:background .2s,color .2s}
+.seg button[aria-pressed="true"]{background:var(--color-porcelain);color:var(--color-ink);font-weight:600}
+@media (max-width:860px){.lnav .ttl{display:none}.lnav{gap:12px}}
+@media (max-width:600px){.lnav-links{display:none}.lnav{justify-content:space-between}}
+
+/* City hero (satellite shows through) */
+.chero{position:relative;min-height:calc(100svh - 52px);display:flex;flex-direction:column;justify-content:flex-end;
+  padding:0 var(--gutter) clamp(32px,6vh,64px)}
+.chero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top,#000 0%,rgba(0,0,0,.82) 22%,rgba(0,0,0,.25) 52%,rgba(0,0,0,0) 70%)}
+.chero > *{position:relative}
+.chero-grid{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;flex-wrap:wrap;max-width:1200px;width:100%;margin:0 auto}
+.coords{font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.72)}
+.cname{margin:6px 0 0;font-family:var(--font-display);font-weight:600;font-size:clamp(36px,4.2vw,56px);line-height:1.07;letter-spacing:-.005em}
+.bigtemp{margin:4px 0 0;font-family:var(--font-display);font-weight:600;font-size:clamp(96px,13vw,184px);
+  line-height:.95;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.bigtemp .deg{font-size:.42em;vertical-align:.95em;letter-spacing:0;color:rgba(245,245,247,.75);margin-left:.04em}
+.tlabel{margin:10px 0 0;font-size:17px;font-weight:600;letter-spacing:-.374px}
+.tlabel .sub{display:block;font-weight:400;color:rgba(245,245,247,.72)}
+.hstats{display:flex;gap:28px;flex-wrap:wrap;margin:24px 0 0;padding:0}
+.hstats div{min-width:110px}
+.hstats dt{font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.62)}
+.hstats dd{margin:2px 0 0;font-size:17px;font-weight:600}
+.zoom-toast{position:fixed;left:50%;bottom:28px;z-index:60;transform:translate(-50%,8px);padding:8px 16px;border-radius:var(--radius-pill);
+  background:rgba(51,51,54,.9);font-size:12px;letter-spacing:-.12px;color:var(--color-porcelain);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+.zoom-toast.on{opacity:1;transform:translate(-50%,0)}
+.attrib{position:absolute;right:var(--gutter);top:16px;font-size:10px;letter-spacing:-.037em;color:rgba(245,245,247,.55)}
+.scrollcue{display:flex;align-items:center;gap:8px;margin:32px auto 0;font-size:12px;color:rgba(245,245,247,.6);max-width:1200px;width:100%}
+.scrollcue span{display:inline-block;animation:bob 1.8s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(4px)}}
+.city.on .rise{animation:rise .9s var(--ease) both}
+.city.on .rise.d1{animation-delay:.08s}.city.on .rise.d2{animation-delay:.16s}.city.on .rise.d3{animation-delay:.24s}
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
+/* Sections */
+.sections{position:relative;background:#000;padding:0 var(--gutter)}
+.sec{max-width:1200px;margin:0 auto;padding-top:clamp(72px,11vh,128px);scroll-margin-top:52px}
+.sec-head .eyebrow{color:var(--color-steel)}
+.sec-head h2{margin:6px 0 12px;font-family:var(--font-display);font-weight:600;font-size:clamp(34px,4.4vw,56px);line-height:1.07;letter-spacing:-.005em}
+.sec-head p{margin:0;max-width:680px;color:var(--color-steel)}
+.card{margin-top:40px;background:var(--color-charcoal-stage);border-radius:var(--radius-cards);padding:clamp(20px,3vw,40px)}
+.card + .card{margin-top:24px}
+.tile{background:#000;border-radius:var(--radius-cards);padding:16px}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.card-title{margin:0;font-family:var(--font-display);font-size:28px;font-weight:600;line-height:1.14;letter-spacing:.007em}
+.card-sub{margin:4px 0 0;font-size:14px;letter-spacing:-.224px;color:var(--color-steel)}
+.legend{display:flex;flex-wrap:wrap;gap:8px 20px;font-size:12px;letter-spacing:-.12px;color:rgba(245,245,247,.8)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{display:inline-block;width:16px;height:2px;border-radius:1px}
+.sw.s1{background:var(--series-1)}.sw.s2{background:var(--series-2)}
+.sw.dash{background:repeating-linear-gradient(90deg,var(--color-steel) 0 4px,transparent 4px 7px)}
+.sw.band{height:10px;background:rgba(57,135,229,.28);border-radius:2px}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .9s var(--ease),transform .9s var(--ease)}
+.reveal.in{opacity:1;transform:none}
+
+/* Charts */
+.chart{position:relative;width:100%}
+.chart svg{display:block;overflow:visible}
+.ax{fill:var(--color-steel);font-size:11px;letter-spacing:0;font-family:var(--font-text)}
+.dl{fill:var(--color-porcelain);font-size:12px;font-weight:600;letter-spacing:-.12px;font-family:var(--font-text)}
+.dl .v{fill:rgba(245,245,247,.7);font-weight:400}
+.tip{position:fixed;left:0;top:0;z-index:300;pointer-events:none;opacity:0;transition:opacity .12s;min-width:180px;
+  padding:10px 12px;border-radius:12px;background:rgba(29,29,31,.94);border:1px solid rgba(245,245,247,.14);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);font-size:12px;line-height:1.55;letter-spacing:-.12px}
+.tip b{display:block;font-size:12px;margin-bottom:4px}
+.tip .r{display:flex;justify-content:space-between;gap:18px;color:rgba(245,245,247,.75)}
+.tip .r span:last-child{color:var(--color-porcelain);font-variant-numeric:tabular-nums}
+
+/* Outlook */
+.outlook{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
+.ol .day{font-size:14px;font-weight:600;letter-spacing:-.224px}
+.ol .date{font-size:12px;color:var(--color-steel)}
+.ol .t{margin:14px 0 10px;font-family:var(--font-display);font-size:28px;font-weight:600;line-height:1;letter-spacing:.007em}
+.ol .track{position:relative;height:4px;border-radius:2px;background:var(--color-control-charcoal)}
+.ol .rng{position:absolute;top:0;height:4px;border-radius:2px;background:var(--series-1)}
+.ol .mid{position:absolute;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:var(--color-porcelain);box-shadow:0 0 0 2px #000}
+.ol .iv{margin-top:8px;font-size:12px;color:var(--color-steel)}
+.ol.first{box-shadow:inset 0 0 0 1px rgba(245,245,247,.35)}
+@media (max-width:900px){.outlook{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media (max-width:520px){.outlook{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Models */
+.lead{margin:0;font-family:var(--font-display);font-weight:600;font-size:clamp(34px,4.4vw,56px);line-height:1.07;letter-spacing:-.005em}
+.reason{margin:16px 0 0;max-width:760px;color:rgba(245,245,247,.78)}
+.mgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:32px}
+.mt{display:flex;flex-direction:column;gap:2px;min-height:230px}
+.mt.champ{box-shadow:inset 0 0 0 1px var(--color-porcelain)}
+.mt .hd{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.mt .nm{font-size:17px;font-weight:600;line-height:1.24}
+.mt .sb{font-size:12px;color:var(--color-steel)}
+.mt .lbl{margin-top:auto;font-size:12px;color:var(--color-steel)}
+.mt .mae{font-family:var(--font-display);font-size:48px;font-weight:600;line-height:1;letter-spacing:-.144px}
+.mt .mae small{font-size:17px;font-weight:600;color:var(--color-steel);margin-left:4px;letter-spacing:-.374px}
+.mt .row{display:flex;gap:16px;margin-top:10px;font-size:14px;letter-spacing:-.224px}
+.mt .row span{color:var(--color-steel)}
+.mt .row b{font-weight:600;color:var(--color-porcelain)}
+.mt .delta{margin-top:10px;font-size:12px;color:rgba(245,245,247,.8)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.split > .tile{padding:20px 16px}
+.tile h3{margin:0;font-size:17px;font-weight:600;line-height:1.24}
+.tile .card-sub{margin-bottom:16px}
+@media (max-width:980px){.mgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.split{grid-template-columns:1fr}}
+@media (max-width:520px){.mgrid{grid-template-columns:1fr}.mt{min-height:0}}
+
+/* horizontal bars (feature importance, PSI) */
+.hb{display:grid;grid-template-columns:110px 1fr 48px;align-items:center;gap:6px 12px;font-size:12px;letter-spacing:-.12px}
+.hb .k{font-family:var(--font-mono);font-size:12px;color:rgba(245,245,247,.85);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hb .bar{position:relative;height:16px}
+.hb .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--series-1)}
+.hb .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--color-porcelain)}
+.psi{grid-template-columns:110px 1fr 44px 96px}
+.psi .bar{height:16px}
+.psi .bar i{background:var(--color-steel)}
+.psi .bar i.mod{background:#c98500}.psi .bar i.maj{background:var(--color-signal-orange)}
+.psi .thr{position:absolute;top:-4px;bottom:-4px;width:0;border-left:1px dashed rgba(245,245,247,.35)}
+.psi .st{font-size:12px;white-space:nowrap;color:rgba(245,245,247,.85)}
+.psi .st .ic{display:inline-block;width:14px;text-align:center;margin-right:4px}
+.psi-head{display:grid;grid-template-columns:110px 1fr 44px 96px;gap:12px;font-size:11px;color:var(--color-steel);margin-bottom:8px}
+.psi-head .scale{position:relative;height:14px}
+.psi-head .scale span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+
+/* Monitor */
+.mon-top{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.mon-status{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mon-status .badge{font-size:14px;line-height:18px;padding:6px 10px}
+.mon-title{margin:16px 0 0;font-family:var(--font-display);font-size:28px;font-weight:600;line-height:1.14;letter-spacing:.007em;max-width:760px}
+.mon-body{margin:12px 0 0;max-width:760px;color:rgba(245,245,247,.78)}
+.preview-ctl{display:flex;flex-direction:column;align-items:flex-end;gap:6px;font-size:12px;color:var(--color-steel)}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}
+.kpi .lbl{font-size:12px;color:var(--color-steel)}
+.kpi .val{margin-top:6px;font-family:var(--font-display);font-size:48px;font-weight:600;line-height:1;letter-spacing:-.144px}
+.kpi .val small{font-size:17px;color:var(--color-steel);letter-spacing:-.374px;margin-left:4px}
+.kpi .note{margin-top:8px;font-size:12px;color:rgba(245,245,247,.75)}
+.shift{width:100%;border-collapse:collapse;font-size:12px;margin-top:16px}
+.shift th{font-weight:400;color:var(--color-steel);text-align:left;padding:6px 8px 6px 0;border-bottom:1px solid var(--hair)}
+.shift td{padding:7px 8px 7px 0;border-bottom:1px solid rgba(245,245,247,.05);font-variant-numeric:tabular-nums}
+.shift td:first-child{font-family:var(--font-mono)}
+@media (max-width:700px){.kpis{grid-template-columns:1fr}.preview-ctl{align-items:flex-start}.psi,.psi-head{grid-template-columns:86px 1fr 36px 80px}}
+
+/* Pipeline */
+.pl-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.flow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:24px;margin-top:24px}
+.node{position:relative;min-height:176px;display:flex;flex-direction:column;gap:4px;overflow:visible;transition:box-shadow .3s}
+.node .n{font-size:12px;color:var(--color-steel);font-variant-numeric:tabular-nums}
+.node .st-name{font-family:var(--font-display);font-size:21px;font-weight:600;line-height:1.14;letter-spacing:.011em}
+.node .sub{font-size:12px;color:var(--color-steel);line-height:1.35}
+.node .stats{margin-top:auto;font-size:12px;line-height:1.5;color:rgba(245,245,247,.85)}
+.node .state{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:12px;font-weight:600}
+.node .state .ic{width:14px;text-align:center}
+.node.done .state{color:var(--color-porcelain)}
+.node.empty{box-shadow:inset 0 0 0 1px rgba(245,245,247,.16)}
+.node.empty .st-name,.node.empty .stats{color:var(--color-steel)}
+.node.running{box-shadow:inset 0 0 0 1px var(--series-1)}
+.node.running .state{color:#6aa8ef}
+.node .prog{position:absolute;left:16px;right:16px;bottom:10px;height:2px;border-radius:1px;overflow:hidden;background:transparent}
+.node.running .prog{background:rgba(57,135,229,.2)}
+.node.running .prog::after{content:"";position:absolute;top:0;bottom:0;width:40%;background:var(--series-1);animation:scan 1.1s var(--ease) infinite}
+@keyframes scan{from{left:-40%}to{left:100%}}
+.node:not(:last-child)::after{content:"";position:absolute;top:50%;right:-24px;width:24px;height:2px;margin-top:-1px;background:rgba(245,245,247,.14)}
+.node.done:not(:last-child)::after{background:rgba(245,245,247,.45)}
+.node.running:not(:last-child)::after,.node.feeding::after{background:repeating-linear-gradient(90deg,var(--series-1) 0 6px,transparent 6px 12px);
+  background-size:24px 2px;animation:flow .5s linear infinite}
+@keyframes flow{to{background-position:24px 0}}
+.node .runbtn{align-self:flex-start;margin-top:10px}
+@media (max-width:1080px){.flow{grid-template-columns:repeat(3,minmax(0,1fr))}.node:nth-child(3n)::after{display:none}}
+@media (max-width:560px){.flow{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.node::after{display:none!important}}
+.guide{display:none;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-top:24px;padding:20px 24px;
+  border-radius:var(--radius-cards);background:#000;box-shadow:inset 0 0 0 1px rgba(57,135,229,.6)}
+.fresh .guide{display:flex}
+.guide h3{margin:0;font-size:17px;font-weight:600}
+.guide p{margin:4px 0 0;font-size:14px;letter-spacing:-.224px;color:rgba(245,245,247,.75);max-width:640px}
+
+/* Terminal */
+.term{margin-top:24px;padding:0;overflow:hidden}
+.term-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--hair)}
+.term-bar .grow{flex:1}
+.search{height:28px;width:180px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid var(--color-graphite);
+  background:rgba(255,255,255,.04);color:var(--color-porcelain);font-size:12px;letter-spacing:-.12px}
+.search::placeholder{color:var(--color-steel)}
+.term-body{height:320px;overflow:auto;scrollbar-color:#424245 transparent;scrollbar-width:thin;padding:12px 16px 16px;font-family:var(--font-mono);font-size:12px;line-height:1.7;letter-spacing:0}
+.ln{display:grid;grid-template-columns:66px 52px 1fr;gap:10px;white-space:pre-wrap;word-break:break-word}
+.ln .ts{color:var(--color-graphite)}
+.ln .lv{font-weight:600}
+.ln[data-l="INFO"] .lv{color:var(--color-steel)}
+.ln[data-l="WARN"] .lv{color:var(--color-signal-orange)}
+.ln[data-l="ERROR"] .lv{color:#ff5a60}
+.ln[data-l="ERROR"] .msg{color:#ffb3b5}
+.ln.hide{display:none}
+.ln.new{animation:fadein .35s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.term-empty{color:var(--color-steel);padding:8px 0}
+.cursor{display:inline-block;width:7px;height:13px;vertical-align:-2px;background:var(--color-porcelain);animation:blink 1s steps(1) infinite}
+
+/* Prediction log table */
+.tbl-wrap{overflow-x:auto;margin:0 -8px}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;letter-spacing:-.224px;min-width:640px}
+.tbl th{font-weight:400;font-size:12px;letter-spacing:-.12px;color:var(--color-steel);text-align:left;padding:10px 8px;border-bottom:1px solid var(--hair)}
+.tbl td{padding:13px 8px;border-bottom:1px solid rgba(245,245,247,.06);font-variant-numeric:tabular-nums}
+.tbl .r{text-align:right}
+.tbl tr.pending td{color:rgba(245,245,247,.85)}
+.hit{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.hit .ic{font-weight:600}
+.hit.in .ic{color:var(--color-vital-green)}
+.hit.out .ic{color:var(--color-signal-orange)}
+.sumline{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:16px}
+.sumline div{font-size:12px;color:var(--color-steel)}
+.sumline b{display:block;margin-top:2px;font-size:28px;font-family:var(--font-display);font-weight:600;color:var(--color-porcelain);letter-spacing:.007em}
+
+/* What-if (Paper section around a Charcoal module) */
+.paper{background:var(--color-paper);color:var(--color-ink);margin-top:clamp(96px,14vh,160px);padding:clamp(72px,11vh,128px) var(--gutter);scroll-margin-top:52px}
+.paper .inner{max-width:1200px;margin:0 auto}
+.paper .sec-head p{color:var(--color-graphite)}
+.paper .sec-head .eyebrow{color:var(--color-graphite)}
+.module{margin-top:40px;background:var(--color-charcoal-stage);color:var(--color-porcelain);border-radius:var(--radius-cards);
+  padding:clamp(20px,3vw,40px);display:grid;grid-template-columns:1.5fr 1fr;gap:32px}
+.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 16px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field.full{grid-column:1/-1}
+.field label{font-size:12px;letter-spacing:-.12px;color:var(--color-steel)}
+.field .hint{font-size:11px;color:var(--color-graphite)}
+.pill-in{height:48px;width:100%;padding:0 24px;border-radius:var(--radius-pill);border:1px solid var(--color-graphite);
+  background:rgba(255,255,255,.04);color:var(--color-porcelain);font-size:17px;letter-spacing:-.374px;-webkit-appearance:none;appearance:none}
+.pill-in:focus{outline:none;border-color:var(--color-apple-blue);box-shadow:0 0 0 1px var(--color-apple-blue)}
+select.pill-in{padding-right:45px;cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23f5f5f7' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 22px center}
+select.pill-in option{background:#1d1d1f}
+.result{display:flex;flex-direction:column;justify-content:space-between;gap:20px;padding:24px;border-radius:var(--radius-cards);background:#000}
+.result .big{font-family:var(--font-display);font-size:clamp(72px,8vw,104px);font-weight:600;line-height:.95;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.result .big .deg{font-size:.42em;vertical-align:.95em;color:rgba(245,245,247,.75);letter-spacing:0}
+.result .meta{font-size:14px;letter-spacing:-.224px;color:rgba(245,245,247,.78)}
+.result .api{font-family:var(--font-mono);font-size:11px;color:var(--color-steel);letter-spacing:0;word-break:break-all}
+@media (max-width:900px){.module{grid-template-columns:1fr}}
+@media (max-width:520px){.form{grid-template-columns:1fr}}
+
+.foot{background:#000;padding:40px var(--gutter) 56px}
+.foot .inner{max-width:1200px;margin:0 auto;font-size:12px;letter-spacing:-.12px;color:var(--color-steel);display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;border-top:1px solid var(--hair);padding-top:20px}
+
+
+/* ═════════ Light mode: city pages (Porcelain page, Paper cards, Porcelain tiles, Ink text) ═════════ */
+body.theme-light{background:var(--color-porcelain)}
+body.theme-light .city{color:var(--color-ink);scrollbar-color:#c7c7cc var(--color-porcelain)}
+body.theme-light{
+  --series-1:#2a78d6; --series-2:#eb6834;          /* light steps, validated against a light surface */
+  --hair:rgba(0,0,0,.08);
+  --grid:rgba(0,0,0,.07); --cross:rgba(0,0,0,.35); --chart-text:#1d1d1f;
+  --ring-card:#ffffff; --ring-tile:#f5f5f7; --highlight:#1d1d1f; --trigger:#d70015;
+}
+body.theme-light .btn-outline{border-color:rgba(29,29,31,.8);color:var(--color-ink)}
+body.theme-light .btn-outline:hover{background:rgba(0,0,0,.05)}
+body.theme-light .btn-quiet{background:var(--color-cloud-gray);color:var(--color-ink)}
+body.theme-light .btn-quiet:hover{background:#dcdce1}
+body.theme-light .link{color:var(--color-link-blue)}
+body.theme-light .badge.ok{background:#e3f6ea;color:#08793c}
+body.theme-light .badge.watch,body.theme-light .badge.soon{background:#fff1e5;color:var(--color-new-orange)}
+body.theme-light .badge.retrain{background:#ffe9ea;color:#c4111b}
+body.theme-light .badge.champ{background:var(--color-ink);color:#fff}
+body.theme-light .badge.neutral{background:var(--color-cloud-gray);color:var(--color-ink)}
+
+/* nav + hero */
+body.theme-light .lnav{background:rgba(255,255,255,.72)}
+body.theme-light .lnav-links a{color:rgba(29,29,31,.72)}
+body.theme-light .lnav-links a:hover,body.theme-light .lnav-links a.active{color:var(--color-ink)}
+body.theme-light .seg{background:var(--color-cloud-gray)}
+body.theme-light .seg button{color:rgba(29,29,31,.75)}
+body.theme-light .seg button[aria-pressed="true"]{background:#fff;color:var(--color-ink);box-shadow:0 0 0 1px rgba(0,0,0,.06)}
+body.theme-light .chero::before{background:linear-gradient(to top,var(--color-porcelain) 0%,rgba(245,245,247,.9) 24%,rgba(245,245,247,.35) 54%,rgba(245,245,247,0) 72%)}
+@media (max-width:760px){body.theme-light .chero::before{background:linear-gradient(to top,var(--color-porcelain) 0%,rgba(245,245,247,.94) 45%,rgba(245,245,247,.6) 66%,rgba(245,245,247,0) 82%)}}
+body.theme-light .coords,body.theme-light .tlabel .sub{color:#424245}
+body.theme-light .bigtemp .deg{color:var(--color-graphite)}
+body.theme-light .hstats dt{color:var(--color-graphite)}
+body.theme-light .attrib{color:rgba(29,29,31,.6)}
+body.theme-light .scrollcue{color:var(--color-graphite)}
+body.theme-light .chero .capsule{background:#fff}
+body.theme-light .chero .capsule .lines{color:var(--color-ink)}
+body.theme-light .chero .capsule .lines .sub{color:var(--color-graphite)}
+body.theme-light .sat-veil{background:radial-gradient(ellipse 90% 80% at 64% 38%,rgba(245,245,247,0) 45%,rgba(245,245,247,.35) 100%)}
+body.theme-light .sat,body.theme-light .leaflet-container{background:var(--color-porcelain)}
+
+/* sections, cards, tiles */
+body.theme-light .sections,body.theme-light .foot{background:var(--color-porcelain)}
+body.theme-light .card{background:var(--color-paper)}
+body.theme-light .tile{background:var(--color-porcelain)}
+body.theme-light .sec-head .eyebrow,body.theme-light .sec-head p,body.theme-light .card-sub{color:var(--color-graphite)}
+body.theme-light .legend{color:#424245}
+body.theme-light .ax{fill:var(--color-graphite)}
+body.theme-light .dl{fill:var(--color-ink)}
+body.theme-light .dl .v{fill:var(--color-graphite)}
+body.theme-light .sw.band{background:rgba(42,120,214,.22)}
+body.theme-light .tip{background:rgba(255,255,255,.96);border-color:rgba(0,0,0,.1);color:var(--color-ink)}
+body.theme-light .tip .r{color:var(--color-graphite)}
+body.theme-light .tip .r span:last-child{color:var(--color-ink)}
+body.theme-light .zoom-toast{background:rgba(255,255,255,.95);color:var(--color-ink)}
+
+body.theme-light .ol .track{background:#d2d2d7}
+body.theme-light .ol .mid{background:var(--color-ink);box-shadow:0 0 0 2px var(--color-porcelain)}
+body.theme-light .ol .date,body.theme-light .ol .iv{color:var(--color-graphite)}
+body.theme-light .ol.first{box-shadow:inset 0 0 0 1px rgba(29,29,31,.35)}
+
+body.theme-light .reason,body.theme-light .mon-body{color:#424245}
+body.theme-light .mt.champ{box-shadow:inset 0 0 0 1px var(--color-ink)}
+body.theme-light .mt .sb,body.theme-light .mt .lbl,body.theme-light .mt .row span,body.theme-light .mt .mae small{color:var(--color-graphite)}
+body.theme-light .mt .row b{color:var(--color-ink)}
+body.theme-light .mt .delta{color:#424245}
+body.theme-light .hb .k{color:#424245}
+body.theme-light .hb .v{color:var(--color-ink)}
+body.theme-light .psi .bar i{background:#aeaeb2}
+body.theme-light .psi .bar i.mod{background:#c98500}
+body.theme-light .psi .bar i.maj{background:#e8650f}
+body.theme-light .psi .thr{border-left-color:rgba(0,0,0,.3)}
+body.theme-light .psi .st{color:#424245}
+body.theme-light .psi-head,body.theme-light .kpi .lbl,body.theme-light .kpi .val small,body.theme-light .preview-ctl{color:var(--color-graphite)}
+body.theme-light .kpi .note{color:#424245}
+body.theme-light .shift th{color:var(--color-graphite)}
+body.theme-light .shift td{border-bottom-color:rgba(0,0,0,.05)}
+
+/* pipeline + terminal */
+body.theme-light .node .n,body.theme-light .node .sub{color:var(--color-graphite)}
+body.theme-light .node .stats{color:#424245}
+body.theme-light .node.done .state{color:var(--color-ink)}
+body.theme-light .node.empty{box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
+body.theme-light .node.empty .st-name,body.theme-light .node.empty .stats{color:var(--color-steel)}
+body.theme-light .node.running .state{color:var(--series-1)}
+body.theme-light .node:not(:last-child)::after{background:rgba(0,0,0,.12)}
+body.theme-light .node.done:not(:last-child)::after{background:rgba(0,0,0,.4)}
+body.theme-light .node.running:not(:last-child)::after{background:repeating-linear-gradient(90deg,var(--series-1) 0 6px,transparent 6px 12px);background-size:24px 2px}
+body.theme-light .guide{background:var(--color-porcelain)}
+body.theme-light .guide p{color:#424245}
+body.theme-light .search{background:#fff;border-color:#d2d2d7;color:var(--color-ink)}
+body.theme-light .search::placeholder{color:var(--color-graphite)}
+body.theme-light .term-body{scrollbar-color:#c7c7cc transparent}
+body.theme-light .ln .ts{color:var(--color-steel)}
+body.theme-light .ln[data-l="INFO"] .lv{color:var(--color-graphite)}
+body.theme-light .ln[data-l="WARN"] .lv{color:var(--color-new-orange)}
+body.theme-light .ln[data-l="ERROR"] .lv,body.theme-light .ln[data-l="ERROR"] .msg{color:#c4111b}
+body.theme-light .cursor{background:var(--color-ink)}
+
+/* prediction log */
+body.theme-light .tbl th,body.theme-light .sumline div{color:var(--color-graphite)}
+body.theme-light .tbl td{border-bottom-color:rgba(0,0,0,.06)}
+body.theme-light .tbl tr.pending td{color:#424245}
+body.theme-light .sumline b{color:var(--color-ink)}
+body.theme-light .hit.in .ic{color:#08793c}
+body.theme-light .hit.out .ic{color:var(--color-new-orange)}
+
+/* what-if: Paper section around a light module */
+body.theme-light .module{background:var(--color-porcelain);color:var(--color-ink)}
+body.theme-light .field label{color:var(--color-graphite)}
+body.theme-light .pill-in{background:#fff;border-color:#d2d2d7;color:var(--color-ink)}
+body.theme-light select.pill-in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231d1d1f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 22px center}
+body.theme-light select.pill-in option{background:#fff}
+body.theme-light .result{background:#fff}
+body.theme-light .result .big .deg{color:var(--color-graphite)}
+body.theme-light .result .meta{color:#424245}
+
+@media (prefers-reduced-motion:reduce){
+  :root{--zoom-ms:1ms}
+  *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:1ms!important}
+  .reveal{opacity:1;transform:none}
+}
 </style>
 </head>
 <body>
-<header><div class="wrap">
-  <div><h1>Coastal Karnataka Weather MLOps</h1><p>Next-day maximum temperature &middot; Udupi, Mangaluru, Bengaluru &middot; Data Engineering and MLOps (BAD714C)</p></div>
-  <div class="spacer"></div>
-  <span class="pill" id="modelChip">no model yet</span>
-  <span class="pill" id="decisionChip">monitor: n/a</span>
-  <button id="refresh" title="Reload all panels">Refresh</button>
-</div></header>
+<div id="tip" class="tip" role="tooltip" aria-hidden="true"></div>
+<div id="zoomToast" class="zoom-toast" aria-live="polite"></div>
 
-<main class="wrap">
-  <h2>1. The pipeline <small>what is stored at every stage right now</small></h2>
-  <p class="sub">Data moves left to right. Each box fills in from the files on disk and lights up while its step is running.</p>
-  <div class="flow" id="flow"></div>
-  <div class="layers"><span>Bronze = raw JSON from the API</span><span>Silver = cleaned, validated table</span><span>Gold = model-ready features + label</span></div>
 
-  <h2>2. Run it <small>start any step and watch the log</small></h2>
-  <div class="card">
-    <div class="controls" id="controls">
-      <button data-step="ingest">1 Ingest</button>
-      <button data-step="transform">2 Transform</button>
-      <button data-step="train">3 Train</button>
-      <button data-step="monitor">4 Monitor</button>
-      <span class="sep"></span>
-      <button class="primary" data-step="all">Run whole pipeline</button>
-      <button data-step="all-auto">Whole pipeline + auto-retrain</button>
-      <button data-step="demo" title="Trains on dry-season data, monitors the monsoon, retrains. Takes a few minutes.">Drift demo</button>
-    </div>
-    <div class="jobbar"><span class="pill" id="jobState">idle</span><span id="jobInfo">Pick a step above. Ingest needs internet the first time; later runs reuse the saved files.</span></div>
-    <div class="term" id="term"><span class="empty">The command output will appear here.</span></div>
+<div class="alert" id="alert" role="alert">
+  <span aria-hidden="true">⚠︎</span>
+  <span class="msg"><b>Retrain recommended.</b> <span class="long" id="alertMsg">Live error is 36% above training.</span></span>
+  <button class="btn btn-blue btn-sm" id="alertRetrain">Retrain now</button>
+</div>
+
+<!-- ═════════ Home: India at night ═════════ -->
+<main class="home" id="home">
+  <div class="stage" id="stage">
+    <img src="assets/india-night.jpg" alt="Night-time satellite view of the Indian subcontinent with city lights" draggable="false">
   </div>
+  <div id="globe" class="globe" aria-hidden="true"></div>
+  <div class="home-shade"></div>
+  <button class="theme-toggle" id="themeToggle" aria-label="Switch to light mode">
+    <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+    <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+  </button>
+  <div class="globe-hint">Move your cursor to tilt · scroll or pinch to zoom · zoom all the way in to dive</div>
 
-  <h2>3. Forecast <small>served by the model through the API</small></h2>
-  <div class="card">
-    <div class="controls" id="cityTabs"></div>
-    <div class="two" style="margin-top:14px">
-      <div>
-        <div class="sub" style="margin:0">Tomorrow's maximum temperature</div>
-        <div class="temp" id="fcTemp">&ndash;<small> &deg;C</small></div>
-        <div class="kv" id="fcKv"></div>
-        <div style="margin-top:12px"><button class="primary" id="askApi">Ask the API</button></div>
-        <pre class="json" id="apiOut" hidden></pre>
-      </div>
-      <div>
-        <div class="legend"><span><i style="background:#1b2430"></i>actual</span><span><i style="background:#b7791f"></i>model's forecast made the day before</span><span><i style="background:#0f766e"></i>tomorrow</span></div>
-        <div class="chartbox" id="cityChart"></div>
-      </div>
+  <div class="home-copy">
+    <p class="eyebrow">Tomorrow's maximum temperature</p>
+    <h1 class="hero">Three cities.<br>One night ahead.</h1>
+    <p class="lede">A model trained on Open-Meteo history forecasts tomorrow's high for Udupi, Mangaluru and Bengaluru. Pick a red marker to fly in.</p>
+    <div class="capsule home-capsule">
+      <span class="lines"><span id="capLine">Champion: Ridge · MAE 1.118 °C</span><span class="sub" id="capSub">Next run 06:00 IST · Monitor on Watch</span></span>
+      <button class="btn btn-blue btn-sm" data-go="bengaluru">Open forecast</button>
     </div>
   </div>
-
-  <h2>4. Models <small>tracked in MLflow, newest training run</small></h2>
-  <div class="two even">
-    <div class="card"><div id="modelBars"></div><p class="note">Test error on the newest 15% of dates. Lower is better. The grey bar is the "tomorrow = today" baseline.</p></div>
-    <div class="card"><table id="modelTable"></table><p class="note" id="registryNote"></p></div>
-  </div>
-
-  <h2>5. Monitoring <small>is the model still healthy?</small></h2>
-  <div class="card" id="monitorCard"></div>
-
-  <h2>6. Prediction log <small>every forecast the API served</small></h2>
-  <div class="card"><table id="predTable"></table></div>
-
-  <footer>
-    API documentation: <a href="/docs">/docs</a> &middot; experiment tracking: run <code>mlflow ui --backend-store-uri sqlite:///mlflow.db</code> and open <a href="http://127.0.0.1:5000">127.0.0.1:5000</a>
-  </footer>
 </main>
 
+<!-- ═════════ Satellite layer (Leaflet + Esri World Imagery) ═════════ -->
+<div id="sat" class="sat" aria-hidden="true"></div>
+<div class="sat-veil"></div>
+
+<!-- ═════════ City page ═════════ -->
+<section id="city" class="city" aria-label="City forecast" aria-hidden="true">
+  <nav class="lnav" aria-label="Sections">
+    <button class="btn btn-outline btn-sm" id="back" aria-label="Back to India map">‹ India</button>
+    <span class="ttl" id="lnTitle">Bengaluru</span>
+    <div class="lnav-links" id="lnLinks">
+      <a href="#s-forecast">Forecast</a><a href="#s-models">Models</a><a href="#s-monitor">Monitor</a>
+      <a href="#s-pipeline">Pipeline</a><a href="#s-log">Prediction log</a><a href="#s-whatif">What-if</a>
+    </div>
+    <div class="seg" role="group" aria-label="Switch city" id="citySeg"></div>
+    <button class="theme-toggle" id="themeToggle2" aria-label="Switch to light mode">
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg>
+    </button>
+  </nav>
+
+  <header class="chero">
+    <div class="attrib" id="attrib">Imagery © Esri, Maxar, Earthstar Geographics</div>
+    <div class="chero-grid">
+      <div>
+        <div class="coords rise" id="hCoords">12.97° N · 77.59° E · Deccan Plateau</div>
+        <h2 class="cname rise d1" id="hName">Bengaluru</h2>
+        <div class="bigtemp rise d2"><span id="hTemp">27.8</span><span class="deg">°C</span></div>
+        <p class="tlabel rise d3"><span id="hDate">Predicted maximum for Sunday, 8 Nov</span>
+          <span class="sub" id="hInt">80% interval 26.4 – 29.6 °C</span></p>
+      </div>
+      <div class="rise d3">
+        <dl class="hstats">
+          <div><dt>Today, actual</dt><dd id="hToday">27.4 °C</dd></div>
+          <div><dt>Baseline (tomorrow = today)</dt><dd id="hBase">27.4 °C</dd></div>
+          <div><dt>Last 30 days, MAE</dt><dd id="hMae">1.02 °C</dd></div>
+        </dl>
+        <div class="capsule" style="margin-top:24px">
+          <span class="lines"><span id="hCapLine">Ridge v13 · served 06:04 IST</span><span class="sub">Change the inputs and see what moves</span></span>
+          <a class="btn btn-blue btn-sm" href="#s-whatif">Try what-if</a>
+        </div>
+      </div>
+    </div>
+    <div class="scrollcue"><span aria-hidden="true">↓</span> Scroll for history, models, drift and pipeline · scroll up or pinch to zoom back out</div>
+  </header>
+
+  <div class="sections">
+    <!-- Forecast -->
+    <section class="sec" id="s-forecast">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Forecast</p>
+        <h2>Actual vs predicted.</h2>
+        <p id="fcIntro">Each day's forecast against what the thermometer read, with the 80% interval from residual quantiles and the “tomorrow = today” baseline for reference.</p>
+      </div>
+      <div class="card reveal">
+        <div class="toolbar">
+          <div class="legend" aria-label="Legend">
+            <span><i class="sw s2"></i>Actual</span>
+            <span><i class="sw s1"></i>Predicted</span>
+            <span><i class="sw band"></i>80% interval</span>
+            <span><i class="sw dash"></i>Baseline</span>
+          </div>
+          <div class="seg" role="group" aria-label="Range" id="rangeSeg">
+            <button data-r="30">30 days</button><button data-r="60" aria-pressed="true">60 days</button><button data-r="90">90 days</button>
+          </div>
+        </div>
+        <div class="chart" id="fcChart"></div>
+      </div>
+      <div class="card reveal" id="outlookCard">
+        <div class="toolbar">
+          <div><h3 class="card-title">Week ahead</h3><p class="card-sub">The interval widens with every extra day ahead.</p></div>
+          <span class="badge soon">Preview · needs a multi-day endpoint</span>
+        </div>
+        <div class="outlook" id="outlook"></div>
+      </div>
+    </section>
+
+    <!-- Models -->
+    <section class="sec" id="s-models">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Model comparison · all three cities</p>
+      </div>
+      <div class="card reveal" style="margin-top:16px">
+        <p class="lead" id="mLead">Ridge wins by 0.003 °C.</p>
+        <p class="reason" id="mReason"></p>
+        <div class="mgrid" id="mGrid"></div>
+        <div class="split">
+          <div class="tile"><h3>What the champion leans on</h3><p class="card-sub" id="fiSub">Ridge standardised coefficients, absolute value</p><div class="hb" id="fiBars"></div></div>
+          <div class="tile"><h3>Registry history</h3><p class="card-sub">Hold-out MAE for each of the 13 registered versions</p><div class="chart" id="verChart"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Monitor -->
+    <section class="sec" id="s-monitor">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Drift monitor</p>
+        <h2>Is the model still right?</h2>
+      </div>
+      <div class="card reveal">
+        <div class="mon-top">
+          <div class="mon-status">
+            <span class="badge watch" id="monBadge"><span class="ic" aria-hidden="true">◐</span>Watch</span>
+            <span class="card-sub" style="margin:0" id="monChecked">Checked today 06:05 IST · 30-day live window</span>
+          </div>
+          <div class="preview-ctl">
+            <span>Preview state</span>
+            <div class="seg" role="group" aria-label="Preview monitor state" id="monSeg">
+              <button data-s="OK">OK</button><button data-s="WATCH" aria-pressed="true">Watch</button><button data-s="RETRAIN">Retrain</button>
+            </div>
+          </div>
+        </div>
+        <p class="mon-title" id="monTitle"></p>
+        <p class="mon-body" id="monBody"></p>
+
+        <div class="kpis">
+          <div class="tile kpi"><div class="lbl">Live error · 7-day MAE</div><div class="val num" id="kLive">1.21<small>°C</small></div><div class="note" id="kLiveN"></div></div>
+          <div class="tile kpi"><div class="lbl">Training error · MAE</div><div class="val num">1.118<small>°C</small></div><div class="note">Hold-out set, Jan–Jun 2026</div></div>
+          <div class="tile kpi"><div class="lbl">Features drifted</div><div class="val num" id="kDrift">9<small>of 9</small></div><div class="note" id="kDriftN"></div></div>
+        </div>
+
+        <div class="split">
+          <div class="tile">
+            <h3>Drift per feature (PSI)</h3>
+            <p class="card-sub">Below 0.10 is stable, 0.10–0.20 moderate, 0.20 and above counts as drifted</p>
+            <div class="psi-head"><span>Feature</span><div class="scale" id="psiScale"></div><span>PSI</span><span>Status</span></div>
+            <div class="hb psi" id="psiBars"></div>
+            <table class="shift" id="shiftTbl" aria-label="Mean shift, training vs live"></table>
+          </div>
+          <div class="tile">
+            <h3>Live error vs training error</h3>
+            <p class="card-sub">Rolling 7-day MAE for this city, last 45 days</p>
+            <div class="legend" style="margin-bottom:12px">
+              <span><i class="sw s1"></i>Live 7-day MAE</span><span><i class="sw dash"></i>Training MAE</span><span><i class="sw" style="background:var(--trigger)"></i>Retrain trigger (+25%)</span>
+            </div>
+            <div class="chart" id="errChart"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pipeline -->
+    <section class="sec" id="s-pipeline">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Pipeline</p>
+        <h2>From raw weather to a served model.</h2>
+        <p>Open-Meteo → bronze → silver → gold → MLflow → FastAPI → monitor. Run any step, or all of them, and watch the log.</p>
+      </div>
+      <div class="card reveal" id="plCard">
+        <div class="toolbar" style="margin-bottom:0">
+          <div class="pl-actions" id="plActions"></div>
+          <button class="link" id="freshToggle" style="font-size:12px">Simulate a fresh install</button>
+        </div>
+        <div class="guide">
+          <div>
+            <h3>First run? Start with Ingest.</h3>
+            <p>Nothing has been built yet. Ingest pulls two years of daily Open-Meteo history for the three cities (about 40 s). Each later step unlocks once its input exists.</p>
+          </div>
+          <button class="btn btn-blue" id="guideRun">Run Ingest</button>
+        </div>
+        <div class="flow" id="flow"></div>
+
+        <div class="tile term">
+          <div class="term-bar">
+            <div class="seg" role="group" aria-label="Filter log level" id="logSeg"></div>
+            <span class="grow"></span>
+            <input class="search" id="logQ" type="search" placeholder="Filter text" aria-label="Filter log text">
+            <button class="btn btn-outline btn-sm" id="logDl">Download .log</button>
+            <button class="btn btn-quiet btn-sm" id="logClear">Clear</button>
+          </div>
+          <div class="term-body" id="logBody" role="log" aria-live="polite" aria-label="Pipeline log"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Prediction log -->
+    <section class="sec" id="s-log">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Prediction log</p>
+        <h2>Every forecast, checked.</h2>
+        <p>Each forecast next to the reading that came in the following day, so accuracy is visible row by row.</p>
+      </div>
+      <div class="card reveal">
+        <div class="sumline" id="logSum"></div>
+        <div class="tbl-wrap"><table class="tbl" id="logTbl"></table></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- What-if -->
+  <section class="paper" id="s-whatif">
+    <div class="inner">
+      <div class="sec-head">
+        <p class="eyebrow">What-if</p>
+        <h2>Change today, see tomorrow.</h2>
+        <p>Edit today's raw weather readings. The served model re-scores them through <code>POST /predict</code>; no backend changes needed.</p>
+      </div>
+      <div class="module">
+        <form class="form" id="wf" onsubmit="return false">
+          <div class="field full"><label for="wf-city">City</label>
+            <select class="pill-in" id="wf-city"><option value="udupi">Udupi</option><option value="mangaluru">Mangaluru</option><option value="bengaluru">Bengaluru</option></select></div>
+          <div class="field"><label for="wf-tmax">Today's max (°C)</label><input class="pill-in num" id="wf-tmax" type="number" step="0.1"></div>
+          <div class="field"><label for="wf-tmin">Today's min (°C)</label><input class="pill-in num" id="wf-tmin" type="number" step="0.1"></div>
+          <div class="field"><label for="wf-tmaxY">Yesterday's max (°C)</label><input class="pill-in num" id="wf-tmaxY" type="number" step="0.1"></div>
+          <div class="field"><label for="wf-roll7">7-day mean max (°C)</label><input class="pill-in num" id="wf-roll7" type="number" step="0.1"></div>
+          <div class="field"><label for="wf-rad">Solar radiation (MJ/m²)</label><input class="pill-in num" id="wf-rad" type="number" step="0.1" min="0"></div>
+          <div class="field"><label for="wf-precip">Precipitation (mm)</label><input class="pill-in num" id="wf-precip" type="number" step="0.1" min="0"></div>
+          <div class="field"><label for="wf-wind">Max wind (km/h)</label><input class="pill-in num" id="wf-wind" type="number" step="1" min="0"></div>
+          <div class="field" style="justify-content:flex-end"><button class="btn btn-quiet" type="button" id="wfReset" style="height:48px">Reset to today</button></div>
+        </form>
+        <div class="result" aria-live="polite">
+          <div>
+            <div class="card-sub" style="margin:0 0 8px" id="wfFor">Predicted max for tomorrow, Bengaluru</div>
+            <div class="big"><span id="wfOut">27.8</span><span class="deg">°C</span></div>
+            <p class="meta" id="wfMeta">80% interval 26.4 – 29.6 °C · same as the served forecast</p>
+          </div>
+          <div>
+            <button class="btn btn-blue" type="button" id="wfGo">Predict</button>
+            <p class="api" id="wfApi" style="margin:12px 0 0"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><div class="inner">
+    <span id="protoNote">Prototype. Figures are mock data shaped like <code>/api/overview</code> and <code>/api/city/{city}</code>.</span>
+    <span>Weather: Open-Meteo · Satellite: Esri World Imagery</span>
+  </div></footer>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/globe.gl@2.46.2/dist/globe.gl.min.js"></script>
 <script>
-const $ = (s) => document.querySelector(s);
-const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); Object.assign(e, attrs); if (html) e.innerHTML = html; return e; };
-const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const fmt = (n, d = 2) => (n === null || n === undefined ? "n/a" : Number(n).toFixed(d));
-const when = (iso) => { if (!iso) return "n/a"; const d = new Date(iso); return isNaN(d) ? "n/a" : d.toLocaleString([], { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }); };
-const api = async (url, opts) => { const r = await fetch(url, opts); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail || r.statusText); return j; };
+(async () => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const STAGES = [
-  { key: "ingest", title: "Ingest", what: "Download daily weather for 3 cities from Open-Meteo (bronze layer)." },
-  { key: "transform", title: "Clean", what: "Remove duplicates, check physical limits, fill small gaps (silver layer)." },
-  { key: "features", title: "Features", what: "Build lags, rolling means, season and city columns (gold layer)." },
-  { key: "train", title: "Train", what: "Fit 3 models, compare with the baseline, track in MLflow, keep the best." },
-  { key: "serve", title: "Serve", what: "FastAPI serves the model and logs every prediction." },
-  { key: "monitor", title: "Monitor", what: "Check drift and live error, then decide: OK, WATCH or RETRAIN." },
-];
-const LOG_STAGE = { "[ingest]": "ingest", "[transform]": "transform", "[train]": "train", "[monitor]": "monitor", "[pipeline]": "train" };
-const FIRST_STAGE = { ingest: "ingest", transform: "transform", train: "train", monitor: "monitor", all: "ingest", "all-auto": "ingest", demo: "train" };
-let ov = null, city = null, job = { since: 0, timer: null, running: false, seen: [] };
-
-/* ---------- pipeline cards ---------- */
-function stageInfo(o) {
-  const q = o.quality, m = o.model, mon = o.monitor, bz = o.bronze;
-  const days = bz.reduce((a, f) => a + f.days, 0);
-  return {
-    ingest: bz.length ? [`${days.toLocaleString()} days`, `${bz.length} raw files &middot; ${when(bz[0].ingested_at)}`] : null,
-    transform: o.silver ? [`${o.silver.rows.toLocaleString()} rows`, q ? `${q.duplicates_removed} duplicates &middot; ${q.out_of_range_values_nulled} out of range &middot; ${q.missing_values_interpolated} gaps filled` : `${o.silver.from} to ${o.silver.to}`] : null,
-    features: o.gold ? [`${o.gold.rows.toLocaleString()} rows`, `${o.gold.features} features &middot; up to ${o.gold.latest}`] : null,
-    train: m ? [esc(m.model_name.replace(/_/g, " ")), `test MAE ${fmt(m.test_metrics.mae, 3)} vs baseline ${fmt(m.baseline_metrics.mae, 3)} &deg;C`] : null,
-    serve: m ? [`${o.predictions.count} served`, `registry v${m.registry_version} &middot; ${o.mlflow.versions} versions saved`] : null,
-    monitor: mon ? [mon.decision, `live MAE ${fmt(mon.live_mae, 3)} &middot; ${Math.round(mon.share_features_drifted * 100)}% features drifted`] : null,
-  };
-}
-function drawFlow() {
-  const info = ov ? stageInfo(ov) : {};
-  const box = $("#flow"); box.innerHTML = "";
-  STAGES.forEach((s, i) => {
-    const d = info[s.key];
-    const c = el("div", { className: "card stage" + (d ? " has" : "") });
-    c.dataset.key = s.key;
-    c.innerHTML = `<div class="no">Step ${i + 1}</div><h3>${s.title}</h3><div class="what">${s.what}</div>` +
-      (d ? `<div class="big">${d[0]}</div><div class="small">${d[1]}</div>` : `<div class="big" style="color:var(--muted)">empty</div><div class="small">not created yet</div>`);
-    box.appendChild(c);
-  });
-  paintRunning();
-}
-function paintRunning() {
-  document.querySelectorAll(".stage").forEach((c) => c.classList.remove("running", "done"));
-  const order = ["ingest", "transform", "features", "train", "serve", "monitor"];
-  const seen = job.seen; if (!seen.length) return;
-  const last = seen[seen.length - 1];
-  const lastIdx = order.indexOf(last === "transform" ? "features" : last);
-  seen.forEach((k) => { const c = document.querySelector(`.stage[data-key="${k}"]`); if (c && !(job.running && k === last)) c.classList.add("done"); });
-  if (seen.includes("transform")) { const g = document.querySelector('.stage[data-key="features"]'); if (g && !(job.running && last === "transform")) g.classList.add("done"); }
-  if (seen.includes("train")) { const g = document.querySelector('.stage[data-key="serve"]'); if (g && !job.running) g.classList.add("done"); }
-  if (job.running) {
-    const targets = last === "transform" ? ["transform", "features"] : [last];
-    targets.forEach((k) => document.querySelector(`.stage[data-key="${k}"]`)?.classList.add("running"));
-  }
-}
-
-/* ---------- job runner ---------- */
-function lineClass(l) {
-  if (/DECISION: OK/.test(l)) return "ln-dec-ok";
-  if (/DECISION: RETRAIN|Traceback|Error|failed/i.test(l)) return "ln-bad";
-  if (/DECISION: WATCH|DRIFT/.test(l)) return "ln-watch";
-  if (/^STEP|^={5,}/.test(l)) return "ln-step";
-  if (/best model|passed/.test(l)) return "ln-ok";
-  if (/^\$ /.test(l)) return "ln-cmd";
-  return "";
-}
-function appendLines(lines) {
-  const t = $("#term"); if (job.since === 0) t.innerHTML = "";
-  const stick = t.scrollTop + t.clientHeight >= t.scrollHeight - 30;
-  lines.forEach((l) => {
-    const m = Object.keys(LOG_STAGE).find((p) => l.startsWith(p));
-    if (m) { const k = LOG_STAGE[m]; if (job.seen[job.seen.length - 1] !== k) job.seen.push(k); }
-    const d = el("div", { className: lineClass(l) }); d.textContent = l || " "; t.appendChild(d);
-  });
-  job.since += lines.length;
-  if (stick) t.scrollTop = t.scrollHeight;
-}
-function setBusy(b) { document.querySelectorAll("#controls button").forEach((x) => (x.disabled = b)); }
-async function pollJob() {
-  try {
-    const j = await api("/api/job?since=" + job.since);
-    appendLines(j.lines);
-    const s = $("#jobState");
-    if (j.state === "running") {
-      job.running = true; s.className = "pill run"; s.textContent = "running: " + j.step;
-      $("#jobInfo").textContent = "Started " + when(j.started) + ". Boxes above light up as each step runs.";
-    } else if (j.state !== "idle") {
-      job.running = false; s.className = "pill " + (j.state === "done" ? "ok" : "bad"); s.textContent = j.state === "done" ? "finished" : "failed";
-      $("#jobInfo").textContent = (j.state === "done" ? "Finished " : "Stopped with exit code " + j.returncode + " at ") + when(j.ended) + ".";
-      clearInterval(job.timer); job.timer = null; setBusy(false); paintRunning(); await loadAll(); return;
-    }
-    paintRunning();
-  } catch (e) { $("#jobInfo").textContent = "Lost contact with the server: " + e.message; }
-}
-function watchJob() { setBusy(true); if (!job.timer) job.timer = setInterval(pollJob, 700); pollJob(); }
-async function startStep(step) {
-  try {
-    await api("/api/run/" + step, { method: "POST" });
-    job = { since: 0, timer: job.timer, running: true, seen: [FIRST_STAGE[step]] }; $("#term").innerHTML = ""; watchJob();
-  } catch (e) { $("#jobInfo").textContent = e.message; }
-}
-
-/* ---------- chart ---------- */
-function lineChart(target, hist, fc) {
-  const W = 700, H = 280, P = { l: 40, r: 16, t: 14, b: 28 };
-  const pts = hist.concat([{ date: fc.date, predicted: fc.value, actual: null, tomorrow: true }]);
-  const vals = pts.flatMap((p) => [p.actual, p.predicted]).filter((v) => v !== null);
-  let lo = Math.floor(Math.min(...vals)) - 1, hi = Math.ceil(Math.max(...vals)) + 1;
-  const x = (i) => P.l + (i / (pts.length - 1)) * (W - P.l - P.r), y = (v) => P.t + (1 - (v - lo) / (hi - lo)) * (H - P.t - P.b);
-  let g = "";
-  for (let v = lo; v <= hi; v += Math.max(1, Math.round((hi - lo) / 5))) g += `<line x1="${P.l}" x2="${W - P.r}" y1="${y(v)}" y2="${y(v)}" stroke="#e5eaf0"/><text x="${P.l - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
-  const ticks = [0, Math.floor(pts.length / 3), Math.floor((2 * pts.length) / 3), pts.length - 1];
-  ticks.forEach((i) => (g += `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle"}">${pts[i].date.slice(5)}</text>`));
-  const path = (key, n) => pts.slice(0, n).map((p, i) => (p[key] === null ? null : `${i && pts[i - 1][key] !== null ? "L" : "M"}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`)).filter(Boolean).join(" ");
-  const n = hist.length, last = pts[n - 1], tm = pts[n];
-  g += `<path d="${path("actual", n)}" fill="none" stroke="#1b2430" stroke-width="1.8"/><path d="${path("predicted", n)}" fill="none" stroke="#b7791f" stroke-width="1.8"/>`;
-  g += `<path d="M${x(n - 1)},${y(last.predicted)} L${x(n)},${y(tm.predicted)}" stroke="#0f766e" stroke-width="2" stroke-dasharray="4 3"/><circle cx="${x(n)}" cy="${y(tm.predicted)}" r="6" fill="#0f766e"/>`;
-  g += `<text x="${x(n)}" y="${P.t + 4}" text-anchor="end" style="fill:#0f766e;font-weight:700;font-size:12px">tomorrow ${fmt(tm.predicted, 1)}&deg;C</text>`;
-  g += `<line id="cur" y1="${P.t}" y2="${H - P.b}" stroke="#9aa6b2" stroke-dasharray="3 3" visibility="hidden"/><rect id="hit" x="${P.l}" y="${P.t}" width="${W - P.l - P.r}" height="${H - P.t - P.b}" fill="transparent"/>`;
-  target.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Actual and predicted maximum temperature">${g}</svg><div class="tip"></div>`;
-  const svg = target.querySelector("svg"), tip = target.querySelector(".tip"), cur = target.querySelector("#cur");
-  svg.querySelector("#hit").addEventListener("mousemove", (ev) => {
-    const r = svg.getBoundingClientRect(), px = ((ev.clientX - r.left) / r.width) * W;
-    const i = Math.max(0, Math.min(pts.length - 1, Math.round(((px - P.l) / (W - P.l - P.r)) * (pts.length - 1)))), p = pts[i];
-    cur.setAttribute("x1", x(i)); cur.setAttribute("x2", x(i)); cur.setAttribute("visibility", "visible");
-    tip.style.display = "block"; tip.style.left = Math.min(ev.clientX - r.left + 12, r.width - 150) + "px"; tip.style.top = "4px";
-    tip.textContent = `${p.date}  actual ${p.actual === null ? "?" : fmt(p.actual, 1)}  forecast ${fmt(p.predicted, 1)}`;
-  });
-  svg.querySelector("#hit").addEventListener("mouseleave", () => { tip.style.display = "none"; cur.setAttribute("visibility", "hidden"); });
-}
-
-/* ---------- panels ---------- */
-function drawCityTabs() {
-  const box = $("#cityTabs"); box.innerHTML = "";
-  (ov?.cities || []).forEach((c) => {
-    const b = el("button", { className: "tab" + (c === city ? " on" : ""), textContent: c });
-    b.onclick = () => { city = c; drawCityTabs(); loadCity(); }; box.appendChild(b);
-  });
-}
-async function loadCity() {
-  if (!city) return;
-  try {
-    const d = await api("/api/city/" + city);
-    $("#fcTemp").innerHTML = `${fmt(d.forecast, 1)}<small> &deg;C</small>`;
-    $("#fcKv").innerHTML = `<span>City</span><b>${esc(d.city)}</b><span>For</span><b>${d.forecast_for}</b><span>Based on</span><b>${d.based_on_date} (${fmt(d.today_tmax, 1)} &deg;C)</b><span>Model</span><b>${esc(d.model.replace(/_/g, " "))}</b>`;
-    lineChart($("#cityChart"), d.history, { date: d.forecast_for, value: d.forecast });
-  } catch (e) {
-    $("#fcTemp").innerHTML = `&ndash;<small> &deg;C</small>`; $("#fcKv").textContent = e.message; $("#cityChart").innerHTML = `<p class="note">${esc(e.message)}</p>`;
-  }
-}
-function drawModels() {
-  const r = ov.mlflow.runs, bars = $("#modelBars"), tbl = $("#modelTable");
-  if (!r.length) { bars.innerHTML = '<p class="note">No MLflow runs yet. Run the Train step.</p>'; tbl.innerHTML = ""; return; }
-  const maes = r.map((x) => x.mae), best = Math.min(...r.filter((x) => x.name !== "baseline_persistence").map((x) => x.mae)), top = Math.max(...maes);
-  bars.innerHTML = r.map((x) => {
-    const base = x.name === "baseline_persistence", win = x.mae === best && !base;
-    return `<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:13px"><span>${esc(x.name.replace(/_/g, " "))}${win ? " &#9733;" : ""}</span><b>${fmt(x.mae, 3)} &deg;C</b></div>
-      <div style="background:#eceff3;border-radius:5px;height:14px"><div style="height:14px;border-radius:5px;width:${(x.mae / top) * 100}%;background:${base ? "#98a2ae" : win ? "#15803d" : "#4b8fd0"}"></div></div></div>`;
-  }).join("");
-  tbl.innerHTML = `<tr><th>Run</th><th>ID</th><th class="num">MAE</th><th class="num">RMSE</th><th class="num">R&sup2;</th></tr>` +
-    r.map((x) => `<tr class="${x.mae === best && x.name !== "baseline_persistence" ? "best" : ""}"><td>${esc(x.name.replace(/_/g, " "))}</td><td>${x.run_id}</td><td class="num">${fmt(x.mae, 3)}</td><td class="num">${fmt(x.rmse, 3)}</td><td class="num">${fmt(x.r2, 3)}</td></tr>`).join("");
-  $("#registryNote").textContent = `${ov.mlflow.versions} model versions are saved in the MLflow registry "temp-forecaster". The highlighted row is the one served.`;
-}
-function drawMonitor() {
-  const m = ov.monitor, box = $("#monitorCard");
-  if (!m) { box.innerHTML = '<p class="note" style="margin:0">No monitoring report yet. Run the Monitor step.</p>'; return; }
-  const feats = Object.entries(m.drift), maxP = Math.max(0.5, ...feats.map(([, v]) => v.psi)) * 1.1;
-  const maes = [["Training test error", m.training_test_mae, "#4b8fd0"], ["Live error (this window)", m.live_mae, m.mae_ratio >= 1.25 ? "#b91c1c" : "#15803d"], ["Baseline (tomorrow = today)", m.persistence_baseline_mae, "#98a2ae"]];
-  const topM = Math.max(...maes.map((x) => x[1])) * 1.05;
-  box.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center"><span class="pill ${m.decision.toLowerCase()}" style="font-size:16px;padding:5px 16px">${m.decision}</span>
-      <span class="sub" style="margin:0">Window ${m.window[0]} to ${m.window[1]} &middot; ${m.rows} rows &middot; compared with: ${esc(m.reference)}</span></div>
-    ${m.reasons.length ? `<ul class="reasons">${m.reasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : '<p class="note">No drift or accuracy loss detected.</p>'}
-    <div class="two even" style="margin-top:14px">
-      <div><b style="font-size:13px">Input drift (PSI per feature, 0.2 = drifted)</b>
-        ${feats.map(([k, v]) => `<div style="margin:6px 0;font-size:12px"><div style="display:flex;justify-content:space-between"><span>${k}</span><span>${v.psi}${v.drifted ? " &middot; drifted" : ""}</span></div>
-          <div style="position:relative;background:#eceff3;border-radius:4px;height:11px"><div style="height:11px;border-radius:4px;width:${(v.psi / maxP) * 100}%;background:${v.drifted ? "#b91c1c" : "#15803d"}"></div>
-          <div style="position:absolute;top:-2px;bottom:-2px;left:${(0.2 / maxP) * 100}%;border-left:2px dashed #1b2430"></div></div></div>`).join("")}</div>
-      <div><b style="font-size:13px">Prediction error (mean absolute, &deg;C)</b>
-        ${maes.map(([k, v, c]) => `<div style="margin:6px 0;font-size:12px"><div style="display:flex;justify-content:space-between"><span>${k}</span><span>${fmt(v, 3)}</span></div>
-          <div style="background:#eceff3;border-radius:4px;height:11px"><div style="height:11px;border-radius:4px;width:${(v / topM) * 100}%;background:${c}"></div></div></div>`).join("")}
-        <p class="note">Live error is ${fmt(m.mae_ratio, 2)}&times; the training error. RETRAIN at 1.25&times; or more, or when drift and a worse error occur together.</p></div>
-    </div>`;
-}
-function drawPreds() {
-  const p = ov.predictions, t = $("#predTable");
-  t.innerHTML = p.recent.length
-    ? `<tr><th>Time</th><th>Source</th><th>City</th><th class="num">Forecast &deg;C</th><th class="num">Model</th></tr>` + p.recent.map((r) => `<tr><td>${when(r.ts)}</td><td>${esc(r.source)}</td><td>${esc(r.city)}</td><td class="num">${fmt(r.prediction, 2)}</td><td class="num">v${r.model_version}</td></tr>`).join("") +
-      `<tr><td colspan="5" class="note">${p.count} predictions logged in total. They are appended to data/predictions/log.jsonl.</td></tr>`
-    : '<tr><td class="note">Nothing served yet. Press "Ask the API" above.</td></tr>';
-}
-function drawHeader() {
-  const m = ov.model;
-  $("#modelChip").textContent = m ? `${m.model_name.replace(/_/g, " ")} · v${m.registry_version}` : "no model yet";
-  const d = ov.monitor?.decision, c = $("#decisionChip"); c.textContent = d ? "monitor: " + d : "monitor: n/a"; c.className = "pill " + (d ? d.toLowerCase() : "");
-}
-async function loadAll() {
-  try { ov = await api("/api/overview"); } catch (e) { $("#jobInfo").textContent = e.message; return; }
-  if (!city || !ov.cities.includes(city)) city = ov.cities[0];
-  drawHeader(); drawFlow(); drawCityTabs(); drawModels(); drawMonitor(); drawPreds(); loadCity();
-}
-
-document.querySelectorAll("#controls button").forEach((b) => (b.onclick = () => startStep(b.dataset.step)));
-$("#refresh").onclick = loadAll;
-$("#askApi").onclick = async () => {
-  const out = $("#apiOut"); out.hidden = false; out.textContent = `GET /forecast/${city} ...`;
-  try { const j = await api("/forecast/" + city); out.textContent = `GET /forecast/${city}\n` + JSON.stringify(j, null, 2); } catch (e) { out.textContent = "Error: " + e.message; }
-  try { ov.predictions = (await api("/api/overview")).predictions; drawPreds(); } catch (e) { /* the table just stays as it was */ }
+/* ───────── Cities: ix/iy = position on the uploaded image (0–1) ───────── */
+const CITIES = {
+  udupi:     { name:'Udupi',     lat:13.3409, lon:74.7421, ix:200/724, iy:376.5/483, side:'left',  base:29.3, trend:3.1,  seed:11, region:'Coastal Karnataka' },
+  mangaluru: { name:'Mangaluru', lat:12.9141, lon:74.8560, ix:203/724, iy:385.5/483, side:'left',  base:29.1, trend:3.3,  seed:23, region:'Coastal Karnataka' },
+  bengaluru: { name:'Bengaluru', lat:12.9716, lon:77.5946, ix:265/724, iy:382.5/483, side:'right', base:27.9, trend:-0.4, seed:37, region:'Deccan Plateau' },
 };
-loadAll();
-// reopening the page keeps the log of the last job and re-attaches to one that is still running
-api("/api/job").then((j) => { if (j.state === "running") watchJob(); else if (j.state !== "idle") pollJob(); }).catch(() => {});
+const ORDER = ['udupi', 'mangaluru', 'bengaluru'];
+
+/* ───────── Mock data layer ─────────
+   Swap these for the real endpoints:
+     GET  /api/overview          → models, runs, monitor, prediction log
+     GET  /api/city/{city}       → history (actual vs predicted) + tomorrow
+     POST /api/run/{step}  + GET /api/job?since=<cursor>  → live pipeline log
+     POST /predict               → what-if                                   */
+function mulberry(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gauss(r){let u=0;while(!u)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*r())}
+const DAY = 864e5;
+const TODAY = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+const addDays = (d, n) => new Date(d.getTime() + n * DAY);
+const r1 = v => Math.round(v * 10) / 10;
+const quantile = (a, q) => { const s = [...a].sort((x,y)=>x-y), p = (s.length-1)*q, lo = Math.floor(p), hi = Math.ceil(p); return s[lo] + (s[hi]-s[lo])*(p-lo); };
+const mean = a => a.reduce((s,v)=>s+v,0) / a.length;
+
+function genCity(key){
+  const c = CITIES[key], r = mulberry(c.seed), N = 91;
+  const clim = i => c.base + c.trend*(i/(N-1)) + 0.6*Math.sin(i/9);
+  const actual = []; let e = 0;
+  for (let i = 0; i < N; i++){ e = 0.62*e + gauss(r)*1.05; actual.push(r1(clim(i) + e)); }
+  const rows = [];
+  for (let i = 1; i < N; i++){
+    const pred = r1(actual[i] + 0.35*(actual[i-1]-actual[i]) + gauss(r)*0.95);
+    rows.push({ date:addDays(TODAY, i-(N-1)), actual:actual[i], pred, base:actual[i-1] });
+  }
+  const res = rows.map(d => d.actual - d.pred);
+  const q10 = quantile(res, .1), q90 = quantile(res, .9);
+  rows.forEach(d => { d.lo = r1(d.pred+q10); d.hi = r1(d.pred+q90); });
+  const last = rows[rows.length-1];
+  const tPred = r1(clim(N) + 0.6*(last.actual - clim(N-1)));
+  const tomorrow = { date:addDays(TODAY,1), pred:tPred, lo:r1(tPred+q10), hi:r1(tPred+q90), base:last.actual };
+  const outlook = [tomorrow];
+  for (let k = 0; k < 6; k++){ const p = r1(clim(N+1+k) + gauss(r)*0.5), w = 0.3*(k+1);
+    outlook.push({ date:addDays(TODAY,k+2), pred:p, lo:r1(p+q10-w), hi:r1(p+q90+w) }); }
+  const coastal = key !== 'bengaluru';
+  const today = { tmax:last.actual, tmin:r1(last.actual-(coastal?6.8:9.6)), tmaxY:rows[rows.length-2].actual,
+    roll7:r1(mean(rows.slice(-7).map(d=>d.actual))), rad:coastal?19:21, precip:coastal?4.6:1.2, wind:coastal?18:14 };
+  const mae30 = mean(rows.slice(-30).map(d=>Math.abs(d.actual-d.pred)));
+  return { key, rows, tomorrow, outlook, q10, q90, mae30, today };
+}
+let DATA = Object.fromEntries(ORDER.map(k => [k, genCity(k)]));
+
+let MODELS = [
+  { id:'baseline', name:'Baseline',               sub:'Tomorrow = today',       mae:1.284, rmse:1.671, r2:0.612 },
+  { id:'ridge',    name:'Ridge',                  sub:'Linear, L2 · α = 1.0',   mae:1.118, rmse:1.452, r2:0.708, champion:true },
+  { id:'rf',       name:'Random forest',          sub:'300 trees · depth 12',   mae:1.121, rmse:1.468, r2:0.701 },
+  { id:'hgb',      name:'Hist gradient boosting', sub:'200 iterations · lr 0.05', mae:1.135, rmse:1.489, r2:0.693 },
+];
+let TRAIN_MAE = 1.118, TRIGGER = TRAIN_MAE * 1.25;
+let IMPORTANCE = [['tmax_lag1',.42],['tmax_roll7',.21],['tmax_lag2',.12],['rh_mean',.09],['tmin_lag1',.07],['precip_sum',.04],['doy_cos',.03],['wind_max',.02]];
+let VERSIONS = [1.262,1.241,1.229,1.218,1.204,1.190,1.176,1.181,1.158,1.149,1.137,1.131,1.118].map((m,i)=>({
+  v:i+1, mae:m, type:['ridge','rf','ridge','hgb','ridge','rf','ridge','hgb','ridge','rf','ridge','rf','ridge'][i], date:addDays(TODAY, -7*(12-i)-4) }));
+let FEATURES = [
+  { f:'tmax_lag1',  psi:.41, tr:'28.1 °C', lv:'30.2 °C' }, { f:'tmax_lag2', psi:.39, tr:'28.1 °C', lv:'30.1 °C' },
+  { f:'tmax_roll7', psi:.44, tr:'28.0 °C', lv:'30.0 °C' }, { f:'tmin_lag1', psi:.31, tr:'21.4 °C', lv:'22.6 °C' },
+  { f:'rh_mean',    psi:.27, tr:'71 %',    lv:'78 %' },    { f:'precip_sum',psi:.18, tr:'2.1 mm',  lv:'4.4 mm' },
+  { f:'wind_max',   psi:.14, tr:'16 km/h', lv:'13 km/h' }, { f:'doy_sin',   psi:.52, tr:'Jan–Jun', lv:'Oct–Nov' },
+  { f:'doy_cos',    psi:.36, tr:'Jan–Jun', lv:'Oct–Nov' },
+];
+const MON = {
+  OK:      { cls:'ok',      ic:'✓', label:'OK',      psiScale:.17, f0:.97, f1:.97 },
+  WATCH:   { cls:'watch',   ic:'◐', label:'Watch',   psiScale:1,   f0:1.05, f1:1.08 },
+  RETRAIN: { cls:'retrain', ic:'!', label:'Retrain', psiScale:1.12, f0:1.04, f1:1.36 },
+};
+
+const state = { city:null, range:60, mon:'WATCH', fresh:false, running:false, logLevel:'ALL', logQ:'' };
+
+/* ───────── Live data layer (same-origin FastAPI). Falls back to the mock above when the API is unreachable (e.g. file://). ───────── */
+const LIVE = { on:false, ov:null, mon:null };
+const MODEL_NAME = { baseline_persistence:'Baseline', ridge:'Ridge', random_forest:'Random forest', hist_gradient_boosting:'Hist gradient boosting' };
+const MODEL_SUB  = { baseline_persistence:'Tomorrow = today', ridge:'Linear, L2 · α = 1.0', random_forest:'200 trees · depth 12', hist_gradient_boosting:'300 iterations · lr 0.05' };
+const getJSON = async (url, opts) => { const r = await fetch(url, opts); const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.detail || r.statusText); return j; };
+const parseDay = iso => { const [y, m, d] = iso.slice(0, 10).split('-').map(Number); return new Date(y, m - 1, d); };
+const whenStr = iso => { if (!iso) return 'n/a'; const d = new Date(iso); return isNaN(d) ? 'n/a' : d.toLocaleString('en-GB', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); };
+
+function buildCity(key, j){
+  const rows = j.history.filter(h => h.actual != null).map((h, i, a) => ({
+    date:parseDay(h.date), actual:h.actual, pred:h.predicted, base:i ? a[i-1].actual : h.actual }));
+  const res = rows.map(d => d.actual - d.pred), q10 = quantile(res, .1), q90 = quantile(res, .9);
+  rows.forEach(d => { d.lo = r1(d.pred + q10); d.hi = r1(d.pred + q90); });
+  const f = j.features || {};
+  const tomorrow = { date:parseDay(j.forecast_for), pred:j.forecast, lo:r1(j.forecast + q10), hi:r1(j.forecast + q90), base:j.today_tmax };
+  return { key, rows, tomorrow, outlook:[tomorrow], q10, q90, features:f, doy:j.day_of_year,
+    mae30:mean(rows.slice(-30).map(d => Math.abs(d.actual - d.pred))),
+    today:{ tmax:f.tmax, tmin:f.tmin, tmaxY:f.tmax_lag1, roll7:f.tmax_roll7, rad:f.radiation, precip:f.precip, wind:f.wind } };
+}
+function applyMonitor(ov){
+  LIVE.mon = ov.monitor || null;
+  const m = LIVE.mon;
+  state.mon = m && MON[m.decision] ? m.decision : 'OK';
+  const tm = (m && m.training_test_mae) || (ov.model && ov.model.test_metrics.mae);
+  if (tm){ TRAIN_MAE = tm; TRIGGER = tm * 1.25; }
+  FEATURES = m ? Object.entries(m.drift).map(([f, v]) => ({ f, psi:v.psi, drifted:v.drifted, tr:f1(v.ref_mean), lv:f1(v.cur_mean) })) : [];
+}
+function applyModels(ov, imp){
+  const meta = ov.model, runs = ov.mlflow.runs.filter(r => r.mae != null);
+  MODELS = runs.map(r => ({ id:r.name === 'baseline_persistence' ? 'baseline' : r.name, name:MODEL_NAME[r.name] || r.name, sub:MODEL_SUB[r.name] || '',
+    mae:r.mae, rmse:r.rmse, r2:r2n(r.r2), champion:meta && r.name === meta.model_name }));
+  if (!MODELS.some(m => m.champion) && meta){   // fall back to the metadata the trainer wrote next to the model
+    MODELS = [{ id:'baseline', name:'Baseline', sub:MODEL_SUB.baseline_persistence, ...pick(meta.baseline_metrics) },
+              { id:meta.model_name, name:MODEL_NAME[meta.model_name] || meta.model_name, sub:MODEL_SUB[meta.model_name] || '', champion:true, ...pick(meta.test_metrics) }];
+  }
+  IMPORTANCE = (imp && imp.items || []).map(i => [i.feature, i.value]);
+  VERSIONS = (ov.mlflow.history || []).filter(h => h.mae != null).map(h => ({ v:h.v, mae:h.mae, type:MODEL_NAME[h.type] || h.type || '', date:new Date(h.date) }));
+}
+const r2n = v => (v == null ? 0 : v), pick = m => ({ mae:m.mae, rmse:m.rmse, r2:m.r2 });
+function applyStats(ov){
+  const bz = ov.bronze, days = bz.reduce((a, f) => a + f.days, 0), q = ov.quality, m = ov.model, mon = ov.monitor;
+  const set = (id, stats) => { const s = STEPS.find(x => x.id === id); if (stats){ s.stats = stats; stepState[id] = 'done'; } else { stepState[id] = 'empty'; } };
+  set('ingest',   bz.length ? [`${bz.length} files · ${days.toLocaleString()} days`, `Updated ${whenStr(bz[0].ingested_at)}`] : null);
+  set('clean',    ov.silver ? [`${ov.silver.rows.toLocaleString()} rows`, q ? `${q.duplicates_removed} duplicates · ${q.out_of_range_values_nulled} out of range` : `${ov.silver.from} → ${ov.silver.to}`] : null);
+  set('features', ov.gold ? [`${ov.gold.rows.toLocaleString()} rows · ${ov.gold.features} features`, `Up to ${ov.gold.latest}`] : null);
+  set('train',    m ? [`Champion ${MODEL_NAME[m.model_name] || m.model_name}`, `Registry v${m.registry_version} · ${ov.mlflow.versions} versions`] : null);
+  set('serve',    m ? [`${ov.predictions.count} predictions served`, `${MODEL_NAME[m.model_name] || m.model_name} v${m.registry_version}`] : null);
+  set('monitor',  mon ? [`Decision ${mon.decision}`, `Live MAE ${f3(mon.live_mae)} °C`] : null);
+  state.fresh = !bz.length;
+}
+async function refreshLive(){
+  const ov = await getJSON('/api/overview');
+  const cities = await Promise.all(ORDER.map(k => getJSON(`/api/city/${CITIES[k].name}?days=120`)));
+  const imp = await getJSON('/api/importance').catch(() => null);
+  LIVE.ov = ov;
+  DATA = Object.fromEntries(ORDER.map((k, i) => [k, buildCity(k, cities[i])]));
+  applyMonitor(ov); applyModels(ov, imp); applyStats(ov);
+  if (ov.model) $('#capLine').textContent = `Champion: ${MODEL_NAME[ov.model.model_name] || ov.model.model_name} · MAE ${f3(ov.model.test_metrics.mae)} °C`;
+}
+async function loadLive(){
+  if (location.protocol === 'file:') return false;
+  try { await refreshLive(); } catch (e) { console.warn('API not reachable, showing the mock data', e); return false; }
+  LIVE.on = true;
+  logLines = [];
+  $('.preview-ctl').style.display = 'none';       // the OK / Watch / Retrain preview is a prototype-only control
+  $('#freshToggle').style.display = 'none';
+  $('#outlookCard').style.display = 'none';       // the API forecasts one day ahead only
+  $('#protoNote').innerHTML = 'Live data from the FastAPI backend · <a class="link" href="/docs">API docs</a> · <a class="link" href="/legacy">previous dashboard</a>';
+  return true;
+}
+
+
+/* ───────── Formatting ───────── */
+const fmtDate = d => d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+const fmtDow  = d => d.toLocaleDateString('en-GB', { weekday:'short' });
+const fmtLong = d => d.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'short' });
+const f1 = v => v.toFixed(1), f2 = v => v.toFixed(2), f3 = v => v.toFixed(3);
+const sgn = v => (v > 0 ? '+' : v < 0 ? '−' : '±') + Math.abs(v).toFixed(1);
+
+/* ═══════════════════════ HOME / GLOBE ═══════════════════════ */
+const home = $('#home'), stage = $('#stage'), cityEl = $('#city'), satEl = $('#sat');
+let geom = { W:0, H:0, left:0, top:0 }, busy = false;
+
+function makePin(key){
+  const c = CITIES[key], d = DATA[key];
+  const b = document.createElement('button');
+  b.className = 'pin'; b.dataset.city = key; b.dataset.side = c.side;
+  b.setAttribute('aria-label', `${c.name}: tomorrow ${f1(d.tomorrow.pred)} degrees. Open forecast`);
+  b.innerHTML = `<span class="ring"></span><span class="ring r2"></span><span class="dot"></span>
+    <span class="pin-label" aria-hidden="true">${c.name}<span class="t num">${f1(d.tomorrow.pred)}°</span></span>`;
+  b.addEventListener('click', () => flyIn(key));
+  return b;
+}
+
+/* ───────── 3D night globe (globe.gl + NASA GIBS VIIRS Black Marble, public domain) ─────────
+   The camera is driven by hand: it sits south of India looking north at a point on the surface,
+   which gives the oblique "orbit" view, and it eases toward the cursor within a clamped range. */
+const GLOBE_OK = typeof Globe === 'function' && (() => { try { const c = document.createElement('canvas');
+  return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } })();
+const BM_URL = (x, y, l) => `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/${l}/${y}/${x}.png`;
+const ESRI_URL = (x, y, l) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${l}/${y}/${x}`;
+const NIGHT_SKY = 'https://cdn.jsdelivr.net/npm/three-globe@2.45.6/example/img/night-sky.png';
+const THEMES = {
+  dark:  { tiles:BM_URL,   maxLevel:8,  bg:'#000000', sky:NIGHT_SKY, atmo:'#3f86ff', gain:1.5 },  // NASA night lights
+  light: { tiles:ESRI_URL, maxLevel:12, bg:'#eef2f7', sky:null,      atmo:'#8ec1ff', gain:1.0 },  // Esri daytime imagery
+};
+const DIVE_ALT = 0.035;                        // globe radii above the city when we hand off to Leaflet
+const HOME_VIEWS = {
+  phone:   { cLat:1.5, cLng:76.5, alt:0.34, tLat:13,   tLng:76.5 },
+  desktop: { cLat:4,   cLng:80,   alt:0.22, tLat:12.5, tLng:80.5 },   // oblique, horizon near the top, like the photo
+};
+const homeBase = () => innerWidth < 760 ? HOME_VIEWS.phone : HOME_VIEWS.desktop;
+const TILT = { lng:6, lat:3 };                    // max cursor offset in degrees: India never leaves the frame
+const cursor = { x:0, y:0 };
+const GH = { G:null, mode:'off', cam:null, lastPov:0, raf:0, zoom:1 };
+const ZOOM = { min:0.45, max:2.6 };   // home-globe zoom range (× the base altitude); India stays in view at both ends
+
+function applyCam(s, force){
+  const G = GH.G, p = G.getCoords(s.cLat, s.cLng, s.alt), t = G.getCoords(s.tLat, s.tLng, 0), cam = G.camera();
+  cam.position.set(p.x, p.y, p.z); cam.up.set(0, 1, 0); cam.lookAt(t.x, t.y, t.z);
+  const now = performance.now();
+  if (force || now - GH.lastPov > 110){
+    GH.lastPov = now;
+    if (!GH.lod) G.scene().traverse(o => {        // one level sharper than globe.gl's default level-of-detail (≈ level 7 at the home view)
+      if (Array.isArray(o.thresholds)){ o.thresholds = o.thresholds.map((_, i) => 16 / Math.pow(2, i)); GH.lod = true; } });
+    G.controls().dispatchEvent({ type:'change' });   // refresh tiles + marker visibility
+  }
+}
+function homeTarget(){
+  const b = homeBase(), dx = cursor.x, dy = cursor.y;
+  return { cLat:b.cLat - dy*TILT.lat, cLng:b.cLng + dx*TILT.lng, alt:b.alt * GH.zoom,
+           tLat:b.tLat - dy*TILT.lat*0.45, tLng:b.tLng + dx*TILT.lng*0.45 };
+}
+function globeLoop(){
+  GH.raf = requestAnimationFrame(globeLoop);
+  if (GH.mode !== 'home') return;
+  const t = homeTarget(), c = GH.cam, k = REDUCE ? 1 : 0.055;
+  let moved = 0;
+  for (const key in t){ const d = t[key] - c[key]; c[key] += d*k; moved += Math.abs(d); }
+  if (moved > 1e-4) applyCam(c);
+}
+const easeIO = k => k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3)/2;
+function tweenCam(to, ms){
+  return new Promise(res => {
+    const from = { ...GH.cam }, t0 = performance.now(), tok = GH.tok = (GH.tok || 0) + 1; GH.mode = 'tween';
+    if (REDUCE || ms <= 0){ Object.assign(GH.cam, to); applyCam(GH.cam, true); return res(); }
+    const step = now => {
+      if (tok !== GH.tok) return res();                 // a newer tween took over
+      const k = Math.min(1, (now - t0)/ms), e = easeIO(k);
+      for (const key in to){
+        GH.cam[key] = key === 'alt'
+          ? Math.exp(Math.log(from.alt) + (Math.log(to.alt) - Math.log(from.alt))*e)   // zoom in log space feels even
+          : from[key] + (to[key] - from[key])*e;
+      }
+      applyCam(GH.cam, k === 1);
+      k < 1 ? requestAnimationFrame(step) : res();
+    };
+    requestAnimationFrame(step);
+  });
+}
+const diveView = key => ({ cLat:CITIES[key].lat - 0.06, cLng:CITIES[key].lon, alt:DIVE_ALT, tLat:CITIES[key].lat, tLng:CITIES[key].lon });
+
+/* unlit tiles: white ambient light only, no directional shading (night is lifted 1.5× so the city lights glow) */
+function setGlobeLight(gain){
+  try { GH.G.lights().forEach(l => { if (l.isDirectionalLight) l.intensity = 0; else { l.color.set(0xffffff); l.intensity = Math.PI * gain; } }); } catch (e) {}
+}
+
+/* ───────── Theme: follows the system setting until the viewer picks one ───────── */
+const THEME_KEY = 'tmax-theme';
+const sysLight = matchMedia('(prefers-color-scheme: light)');
+let stored = null; try { stored = localStorage.getItem(THEME_KEY); } catch (e) {}
+let theme = stored === 'light' || stored === 'dark' ? stored : (sysLight.matches ? 'light' : 'dark');
+function paintThemeUI(){
+  home.classList.toggle('light', theme === 'light');
+  document.body.classList.toggle('theme-light', theme === 'light');
+  $$('.theme-toggle').forEach(b => b.setAttribute('aria-label', theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'));
+}
+async function setTheme(next, remember){
+  if (next === theme) return;
+  theme = next; if (remember){ try { localStorage.setItem(THEME_KEY, next); } catch (e) {} }
+  const el = $('#globe');
+  const fadeGlobe = GH.G && el.classList.contains('ready') && !state.city;   // on a city page the globe is hidden: switch instantly
+  if (fadeGlobe){ el.classList.add('swapping'); await sleep(REDUCE ? 0 : 350); }
+  paintThemeUI();
+  setMapTheme(theme);
+  if (GH.G){
+    const T = THEMES[theme], G = GH.G;
+    G.backgroundColor(T.bg).backgroundImageUrl(T.sky).atmosphereColor(T.atmo)
+     .globeTileEngineUrl(T.tiles).globeTileEngineMaxLevel(T.maxLevel);
+    try { G.globeTileEngineClearCache(); } catch (e) {}
+    setGlobeLight(T.gain);
+    applyCam(GH.cam, true);
+    if (fadeGlobe) await sleep(REDUCE ? 0 : 250);
+    el.classList.remove('swapping');
+  }
+}
+$$('.theme-toggle').forEach(b => b.addEventListener('click', () => setTheme(theme === 'light' ? 'dark' : 'light', true)));
+sysLight.addEventListener?.('change', e => { let s2 = null; try { s2 = localStorage.getItem(THEME_KEY); } catch (er) {} if (!s2) setTheme(e.matches ? 'light' : 'dark', false); });
+paintThemeUI();
+
+function initGlobe(){
+  home.classList.add('globe-mode');
+  const el = $('#globe');
+  const G = GH.G = new Globe(el, { animateIn:false, rendererConfig:{ antialias:true, alpha:false, powerPreference:'high-performance' } })
+    .width(innerWidth).height(innerHeight)
+    .backgroundColor(THEMES[theme].bg)
+    .backgroundImageUrl(THEMES[theme].sky)
+    .showAtmosphere(true).atmosphereColor(THEMES[theme].atmo).atmosphereAltitude(0.17)
+    .globeTileEngineUrl(THEMES[theme].tiles).globeTileEngineMaxLevel(THEMES[theme].maxLevel)
+    .htmlElementsData(ORDER.map(k => ({ key:k, lat:CITIES[k].lat, lng:CITIES[k].lon })))
+    .htmlLat('lat').htmlLng('lng').htmlAltitude(0.001).htmlTransitionDuration(0)
+    .htmlElement(d => { const w = document.createElement('div'); w.className = 'gpin'; w.appendChild(makePin(d.key)); return w; });
+  try { G.renderer().setPixelRatio(Math.min(3, devicePixelRatio || 1)); } catch (e) {}
+  setGlobeLight(THEMES[theme].gain);
+  // we drive the camera, not OrbitControls
+  const ctl = G.controls(); ctl.enabled = false; ctl.update = () => false;
+
+  GH.cam = { cLat:-32, cLng:64, alt:3.4, tLat:12, tLng:74 };
+  applyCam(GH.cam, true);
+  globeLoop();
+  setTimeout(async () => {
+    el.classList.add('ready'); home.classList.add('globe-ready');
+    await tweenCam(homeTarget(), 3200);
+    if (GH.mode === 'tween' && !state.city) GH.mode = 'home';
+  }, 350);
+  addEventListener('pointermove', e => {
+    if (state.city) return;
+    cursor.x = Math.max(-1, Math.min(1, e.clientX/innerWidth*2 - 1));
+    cursor.y = Math.max(-1, Math.min(1, e.clientY/innerHeight*2 - 1));
+    home.classList.add('moved');
+  }, { passive:true });
+  document.addEventListener('pointerleave', () => { cursor.x = 0; cursor.y = 0; });
+}
+
+function layoutStage(){
+  const vw = innerWidth, vh = innerHeight, R = 724/483;
+  const W = Math.max(vw, vh*R), H = W/R;
+  const fx = vw < 760 ? 0.32 : 0.5, fy = vw < 760 ? 0.62 : 0.5;
+  const left = Math.min(0, Math.max(vw-W, vw/2 - fx*W));
+  const top  = Math.min(0, Math.max(vh-H, vh/2 - fy*H));
+  Object.assign(stage.style, { width:W+'px', height:H+'px', left:left+'px', top:top+'px' });
+  geom = { W, H, left, top };
+}
+function zoomStage(key, s){
+  const c = CITIES[key], px = c.ix*geom.W, py = c.iy*geom.H;
+  stage.style.transformOrigin = `${px}px ${py}px`;
+  const tx = innerWidth/2 - (geom.left+px), ty = innerHeight/2 - (geom.top+py);
+  stage.style.transform = `translate(${tx}px,${ty}px) scale(${s})`;
+  stage.style.setProperty('--inv', 1/s);
+}
+function unzoomStage(){ stage.style.transform = 'none'; stage.style.setProperty('--inv', 1); }
+
+/* ───────── Leaflet satellite map ───────── */
+let map = null;
+const CITY_Z = 13;            // whole zoom levels keep map tiles pixel-aligned (no seams under the night filters)
+const NIGHT = { streets:null, lights:null };
+// NASA's lights are ~500 m/px: a soft glow from far out, but upscaled to street level they flood the screen white,
+// so they fade out as you zoom in and the sharp street-light layer takes over
+function fadeLights(){
+  if (!map || !NIGHT.lights) return;
+  const z = map.getZoom(), k = Math.max(0, Math.min(1, (z - 9) / 3.5));
+  NIGHT.lights.setOpacity(0.95 - 0.8*k);
+}
+function setMapTheme(t){
+  const night = t !== 'light';
+  satEl.classList.toggle('night', night);
+  const a = document.getElementById('attrib');
+  if (a) a.textContent = night ? 'Imagery © Esri, Maxar, Earthstar Geographics · Night lights: NASA Black Marble · Roads © Esri'
+                               : 'Imagery © Esri, Maxar, Earthstar Geographics';
+  if (!map || !NIGHT.lights) return;
+  [NIGHT.streets, NIGHT.lights].forEach(l => night ? (map.hasLayer(l) || l.addTo(map)) : (map.hasLayer(l) && map.removeLayer(l)));
+}
+function ensureMap(){
+  if (map || typeof L === 'undefined') return map;
+  map = L.map(satEl, { zoomControl:false, attributionControl:false, dragging:false, scrollWheelZoom:false,
+    doubleClickZoom:false, boxZoom:false, keyboard:false, touchZoom:false, zoomSnap:0, inertia:false });
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:19, maxNativeZoom:18, keepBuffer:6, className:'lyr-base' }).addTo(map);
+  // night extras: Esri dark canvas roads recoloured into street lights, and NASA's real night lights (≈500 m/px) as the glow
+  NIGHT.streets = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom:19, maxNativeZoom:16, keepBuffer:4, className:'lyr-streets', zIndex:2, opacity:0.6 });
+  NIGHT.lights = L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png',
+    { maxZoom:19, maxNativeZoom:8, keepBuffer:2, className:'lyr-lights', zIndex:3 });
+  setMapTheme(theme);
+  map.on('zoom', fadeLights); fadeLights();
+  ORDER.forEach(k => L.marker([CITIES[k].lat, CITIES[k].lon], { interactive:false, keyboard:false,
+    icon:L.divIcon({ className:'', iconSize:[32,32], iconAnchor:[16,16],
+      html:'<div class="sat-pin"><span class="ring"></span><span class="ring r2"></span><span class="dot"></span></div>' }) }).addTo(map));
+  map.setView([CITIES.bengaluru.lat, CITIES.bengaluru.lon], 8);
+  return map;
+}
+function focusCenter(key, z){
+  const c = CITIES[key], w = innerWidth, h = innerHeight;
+  const p = map.project([c.lat, c.lon], z);
+  const off = w < 760 ? L.point(0, h*0.3) : L.point(-w*0.14, h*0.12);   // city sits upper-right of the hero copy
+  return map.unproject(p.add(off), z);
+}
+function fly(key, z, dur){
+  return new Promise(res => {
+    if (!map){ setTimeout(res, REDUCE ? 0 : 600); return; }
+    const target = focusCenter(key, z);
+    if (REDUCE){ map.setView(target, z, { animate:false }); return res(); }
+    let done = false; const fin = () => { if (!done){ done = true; res(); } };
+    map.once('moveend', fin); setTimeout(fin, dur*1000 + 700);
+    map.flyTo(target, z, { duration:dur, easeLinearity:0.15 });
+  });
+}
+
+function leafZoomFor(alt, lat){
+  // match Leaflet's scale to what the globe camera shows at this altitude (vertical FOV 50°)
+  const viewM = 2 * alt * 6371000 * Math.tan(25 * Math.PI/180);
+  return Math.log2(156543.03 * Math.cos(lat * Math.PI/180) * innerHeight / viewM);
+}
+
+async function flyIn(key){
+  if (busy) return;
+  if (state.city){ return switchCity(key); }
+  busy = true; state.city = key;
+  satEl.style.opacity = '';
+  history.replaceState(null, '', '#/' + key);
+  renderCity(key);
+  $$('.pin').forEach(p => p.classList.toggle('target', p.dataset.city === key));
+  home.classList.add('zooming');
+  const c = CITIES[key];
+  if (GH.G){
+    if (ensureMap()){ map.invalidateSize(); map.setView([c.lat, c.lon], leafZoomFor(DIVE_ALT, c.lat), { animate:false }); }
+    const dive = tweenCam(diveView(key), 1500);
+    await sleep(REDUCE ? 0 : 1000);
+    satEl.classList.add('on');
+    await dive;
+    await sleep(REDUCE ? 0 : 80);
+    GH.mode = 'off';
+    await fly(key, CITY_Z, 1.3);
+    GH.G.pauseAnimation();
+  } else {
+    if (ensureMap()){ map.invalidateSize(); map.setView([c.lat, c.lon], 8.2, { animate:false }); }
+    zoomStage(key, 7);
+    await sleep(REDUCE ? 0 : 900);
+    satEl.classList.add('on');
+    await sleep(REDUCE ? 0 : 300);
+    await fly(key, CITY_Z, 2.4);
+  }
+  cityEl.scrollTop = 0;
+  cityEl.classList.add('on'); cityEl.setAttribute('aria-hidden', 'false');
+  setNavCurrent();
+  busy = false;
+  $('#back').focus({ preventScroll:true });
+}
+async function flyOut(){
+  if (busy || !state.city) return;
+  busy = true; const key = state.city, c = CITIES[key];
+  cityEl.classList.remove('on'); cityEl.setAttribute('aria-hidden', 'true');
+  satEl.style.opacity = '';                       // clear any scroll dimming so the fade below can run
+  GH.zoom = 1;
+  if (GH.G){
+    GH.G.resumeAnimation();
+    GH.cam = diveView(key); applyCam(GH.cam, true);
+    $$('.pin').forEach(p => p.classList.toggle('target', p.dataset.city === key));
+    // pull the satellite back a little (its tiles are already loaded) and cross-fade to the globe, which sits at the
+    // matching close-up underneath; the globe then carries the rest of the zoom-out on its own
+    if (map) map.flyTo([c.lat, c.lon], map.getZoom() - 1.5, { duration:REDUCE ? 0 : 0.8 });   // centre the city, as the globe has it
+    await sleep(REDUCE ? 0 : 250);
+    satEl.classList.remove('on');
+    home.classList.remove('zooming');
+    state.city = null; setNavCurrent();
+    history.replaceState(null, '', location.pathname);
+    await tweenCam(homeTarget(), 1700);
+    if (!state.city) GH.mode = 'home';
+  } else {
+    if (map) map.flyTo([c.lat, c.lon], 8.2, { duration:REDUCE ? 0 : 1.3 });
+    await sleep(REDUCE ? 0 : 1000);
+    satEl.classList.remove('on');
+    unzoomStage();
+    home.classList.remove('zooming');
+    state.city = null; setNavCurrent();
+    history.replaceState(null, '', location.pathname);
+    await sleep(REDUCE ? 0 : 1200);
+  }
+  $$('.pin').forEach(p => p.classList.remove('target'));
+  busy = false;
+}
+async function switchCity(key){
+  if (key === state.city || busy) return;
+  state.city = key; history.replaceState(null, '', '#/' + key);
+  if (!GH.G) zoomStage(key, 7);
+  $$('.pin').forEach(p => p.classList.toggle('target', p.dataset.city === key));
+  cityEl.scrollTo({ top:0, behavior: REDUCE ? 'auto' : 'smooth' });
+  renderCity(key); setNavCurrent();
+  fly(key, CITY_Z, 1.6);
+}
+function go(target){ target === 'home' ? flyOut() : flyIn(target); }
+
+/* ═══════════════════════ ZOOM: buttons, wheel, trackpad pinch, touch pinch ═══════════════════════ */
+const toastEl = $('#zoomToast'); let toastT;
+function toast(msg){ toastEl.textContent = msg; toastEl.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('on'), 1400); }
+function nearestCity(px, py){
+  let best = null, bd = Infinity;
+  $$('.pin').forEach(p => { const r = p.getBoundingClientRect(); if (!r.width) return;
+    const d = Math.hypot(r.x + r.width/2 - px, r.y + r.height/2 - py); if (d < bd){ bd = d; best = p.dataset.city; } });
+  return best || 'bengaluru';
+}
+let lastPt = { x:innerWidth/2, y:innerHeight/2 };
+addEventListener('pointermove', e => { lastPt = { x:e.clientX, y:e.clientY }; }, { passive:true });
+
+/* Home globe: zoom by a factor; zooming in past the limit dives into the city nearest the cursor */
+let diveCharge = 0, diveT;
+function globeZoom(f, px = lastPt.x, py = lastPt.y){
+  if (!GH.G || state.city || busy || GH.mode === 'tween') return;
+  const next = GH.zoom * f;
+  if (next < ZOOM.min){
+    GH.zoom = ZOOM.min;
+    diveCharge += Math.log(1/f); clearTimeout(diveT); diveT = setTimeout(() => diveCharge = 0, 500);
+    if (diveCharge > 0.55){ diveCharge = 0; const k = nearestCity(px, py); toast(`Diving into ${CITIES[k].name}`); flyIn(k); }
+    else toast('Keep zooming in to dive into the nearest city');
+  } else {
+    GH.zoom = Math.min(ZOOM.max, next);
+    if (next > ZOOM.max) toast('Zoomed out as far as India allows');
+  }
+  home.classList.add('moved');
+}
+
+/* City page: + / − step the satellite map; − at the starting zoom flies all the way back out to the globe */
+const CITY_ZMAX = 16;
+let stepLock = 0;
+function cityZoom(dir){
+  if (!state.city || busy || !cityEl.classList.contains('on')) return;
+  const now = performance.now(); if (now - stepLock < 650) return; stepLock = now;
+  const z = map ? map.getZoom() : CITY_Z;
+  if (dir > 0){
+    if (!map || z >= CITY_ZMAX - .01){ toast('Closest zoom'); return; }
+    const nz = Math.min(CITY_ZMAX, Math.round(z) + 1); map.flyTo(focusCenter(state.city, nz), nz, { duration:.7 });
+  } else {
+    if (map && z > CITY_Z + .3){ const nz = Math.max(CITY_Z, Math.round(z) - 1); map.flyTo(focusCenter(state.city, nz), nz, { duration:.7 }); }
+    else { cityEl.scrollTo({ top:0 }); flyOut(); }
+  }
+}
+
+/* wheel + trackpad pinch (browsers report pinch as ctrl+wheel) */
+let upCharge = 0, upT;
+addEventListener('wheel', e => {
+  const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? innerHeight : 1);
+  if (e.ctrlKey){                                   // pinch: never let the browser zoom the page
+    e.preventDefault();
+    if (state.city){ if (Math.abs(dy) > 2) cityZoom(dy > 0 ? -1 : 1); }
+    else globeZoom(Math.exp(dy * 0.012), e.clientX, e.clientY);
+    return;
+  }
+  if (!state.city){ globeZoom(Math.exp(dy * 0.0016), e.clientX, e.clientY); return; }
+  // on the city page, scrolling *up* while already at the top pulls you back out to the globe
+  if (cityEl.classList.contains('on') && cityEl.scrollTop <= 0 && dy < 0){
+    upCharge += -dy; clearTimeout(upT); upT = setTimeout(() => upCharge = 0, 450);
+    if (upCharge > 140 && upCharge - (-dy) <= 140) toast('Keep scrolling up to zoom out');
+    if (upCharge > 420){ upCharge = 0; flyOut(); }
+  } else upCharge = 0;
+}, { passive:false });
+
+/* touch pinch (two fingers) */
+let pinch = null;
+addEventListener('touchstart', e => {
+  if (e.touches.length === 2){ const [a, b] = e.touches;
+    pinch = { d:Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY), x:(a.clientX+b.clientX)/2, y:(a.clientY+b.clientY)/2, fired:false }; }
+}, { passive:true });
+addEventListener('touchmove', e => {
+  if (!pinch || e.touches.length !== 2) return;
+  const [a, b] = e.touches, d = Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY), ratio = d / pinch.d;
+  if (!state.city){ globeZoom(1/ratio, pinch.x, pinch.y); pinch.d = d; return; }
+  if (!pinch.fired && (ratio < 0.7 || ratio > 1.4)){ pinch.fired = true; cityZoom(ratio < 1 ? -1 : 1); }
+}, { passive:true });
+addEventListener('touchend', e => { if (e.touches.length < 2) pinch = null; }, { passive:true });
+
+/* keyboard: + / − zoom too */
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input,select,textarea')) return;
+  if (e.key === '+' || e.key === '='){ state.city ? cityZoom(1) : globeZoom(0.7); }
+  if (e.key === '-' || e.key === '_'){ state.city ? cityZoom(-1) : globeZoom(1/0.7); }
+});
+
+$$('[data-go]').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+$('#back').addEventListener('click', flyOut);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && state.city) flyOut(); });
+
+function setNavCurrent(){
+  $$('.gnav-links button').forEach(b => b.setAttribute('aria-current', String(b.dataset.go === (state.city || 'home'))));
+}
+
+/* city switcher in the local nav */
+ORDER.forEach(k => { const b = document.createElement('button'); b.textContent = CITIES[k].name; b.dataset.city = k;
+  b.addEventListener('click', () => switchCity(k)); $('#citySeg').appendChild(b); });
+
+/* hero fades the satellite as you scroll into the dashboard */
+cityEl.addEventListener('scroll', () => {
+  const h = cityEl.clientHeight, t = Math.min(1, cityEl.scrollTop / h);
+  // only dim while the page is actually showing; an inline opacity left behind would block the zoom-out fade
+  satEl.style.opacity = (state.city && cityEl.classList.contains('on') && !busy) ? String(1 - t*0.85) : '';
+  const secs = ['s-forecast','s-models','s-monitor','s-pipeline','s-log','s-whatif'];
+  let cur = null; secs.forEach(id => { const el = document.getElementById(id); if (el.getBoundingClientRect().top < 160) cur = id; });
+  $$('#lnLinks a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#'+cur));
+}, { passive:true });
+$$('#lnLinks a, .chero a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+  e.preventDefault(); document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: REDUCE ? 'auto' : 'smooth' });
+}));
+
+/* reveal on scroll */
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }),
+  { root:cityEl, threshold:.12 });
+$$('.reveal').forEach(el => io.observe(el));
+
+/* ═══════════════════════ CHART HELPERS ═══════════════════════ */
+const NS = 'http://www.w3.org/2000/svg';
+function S(tag, attrs = {}, parent){ const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+function lin(d0, d1, r0, r1){ const f = v => r0 + (v-d0)/((d1-d0)||1)*(r1-r0); f.inv = p => d0 + (p-r0)/((r1-r0)||1)*(d1-d0); return f; }
+function ticks(min, max, n = 5){
+  const raw = (max-min)/n, mag = 10**Math.floor(Math.log10(raw)), e = raw/mag;
+  const step = (e >= 7.5 ? 10 : e >= 3.5 ? 5 : e >= 1.5 ? 2 : 1) * mag, out = [];
+  for (let v = Math.ceil(min/step)*step; v <= max + 1e-9; v += step) out.push(+v.toFixed(6));
+  return out;
+}
+const tip = $('#tip');
+function showTip(html, x, y){
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const r = tip.getBoundingClientRect();
+  let tx = x + 16, ty = y - r.height - 14;
+  if (tx + r.width > innerWidth - 8) tx = x - r.width - 16;
+  if (ty < 100) ty = y + 18;
+  tip.style.transform = `translate(${Math.max(8,tx)}px,${ty}px)`;
+}
+const hideTip = () => { tip.style.opacity = 0; };
+function spread(labels, gap, lo, hi){
+  labels.sort((a,b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i-1].y < gap) labels[i].y = labels[i-1].y + gap;
+  const over = labels.length ? labels[labels.length-1].y - hi : 0; if (over > 0) labels.forEach(l => l.y -= over);
+  if (labels.length && labels[0].y < lo){ const d = lo - labels[0].y; labels.forEach(l => l.y += d); }
+  return labels;
+}
+
+/* Forecast: actual vs predicted, interval band, baseline, tomorrow */
+function drawForecast(){
+  const el = $('#fcChart'), d = DATA[state.city]; el.innerHTML = '';
+  const rows = d.rows.slice(-state.range), t = d.tomorrow, n = rows.length;
+  const W = el.clientWidth, narrow = W < 640, H = narrow ? 260 : 360;
+  const m = { t:18, r: narrow ? 20 : 118, b:30, l:38 };
+  const svg = S('svg', { width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img',
+    'aria-label':`${CITIES[state.city].name}: actual versus predicted maximum temperature for the last ${n} days, plus tomorrow's forecast of ${f1(t.pred)} °C` }, el);
+  const vals = rows.flatMap(r => [r.actual, r.lo, r.hi, r.base]).concat([t.lo, t.hi]);
+  const y0 = Math.floor(Math.min(...vals) - .3), y1 = Math.ceil(Math.max(...vals) + .3);
+  const x = lin(0, n + 0.4, m.l, W - m.r), y = lin(y0, y1, H - m.b, m.t);
+  const g = S('g', {}, svg);
+  ticks(y0, y1, narrow ? 4 : 5).forEach(v => {
+    S('line', { x1:m.l, x2:W-m.r, y1:y(v), y2:y(v), stroke:'var(--grid)' }, g);
+    S('text', { x:m.l-8, y:y(v)+4, 'text-anchor':'end', class:'ax' }, g).textContent = v + '°';
+  });
+  const every = Math.ceil(n / (narrow ? 3 : 6));
+  rows.forEach((r, i) => { if ((n-1-i) % every === 0 && i > 2 && i < n-3)
+    S('text', { x:x(i), y:H-8, 'text-anchor':'middle', class:'ax' }, g).textContent = fmtDate(r.date); });
+  // tomorrow column
+  const half = (x(1) - x(0)) / 2;
+  S('rect', { x:x(n)-Math.max(half,7), y:m.t, width:Math.max(half,7)*2, height:H-m.t-m.b, fill:'rgba(57,135,229,.10)', rx:4 }, g);
+  S('text', { x:x(n), y:H-8, 'text-anchor':'middle', class:'ax', style:'fill:var(--chart-text)' }, g).textContent = 'Tmrw';
+
+  const all = rows.map((r, i) => ({ ...r, i })).concat([{ ...t, i:n }]);
+  const P = (arr, k) => 'M' + arr.map(p => `${x(p.i).toFixed(1)},${y(p[k]).toFixed(1)}`).join('L');
+  S('path', { d: P(all,'hi') + 'L' + [...all].reverse().map(p => `${x(p.i).toFixed(1)},${y(p.lo).toFixed(1)}`).join('L') + 'Z',
+    fill:'var(--series-1)', 'fill-opacity':.16 }, svg);
+  S('path', { d:P(all,'base'), fill:'none', stroke:'var(--color-steel)', 'stroke-width':1.5, 'stroke-dasharray':'4 3' }, svg);
+  S('path', { d:P(all.slice(0,n),'actual'), fill:'none', stroke:'var(--series-2)', 'stroke-width':2, 'stroke-linejoin':'round', 'stroke-linecap':'round' }, svg);
+  S('path', { d:P(all,'pred'), fill:'none', stroke:'var(--series-1)', 'stroke-width':2, 'stroke-linejoin':'round', 'stroke-linecap':'round' }, svg);
+  // tomorrow interval + point
+  S('line', { x1:x(n), x2:x(n), y1:y(t.lo), y2:y(t.hi), stroke:'var(--series-1)', 'stroke-width':2 }, svg);
+  [t.lo, t.hi].forEach(v => S('line', { x1:x(n)-5, x2:x(n)+5, y1:y(v), y2:y(v), stroke:'var(--series-1)', 'stroke-width':2 }, svg));
+  S('circle', { cx:x(n), cy:y(t.pred), r:5.5, fill:'var(--series-1)', stroke:'var(--ring-card)', 'stroke-width':2 }, svg);
+  const last = rows[n-1];
+  S('circle', { cx:x(n-1), cy:y(last.actual), r:4.5, fill:'var(--series-2)', stroke:'var(--ring-card)', 'stroke-width':2 }, svg);
+
+  if (!narrow){
+    const labs = spread([
+      { y:y(t.pred), t:'Tomorrow', v:f1(t.pred)+'°', c:'var(--series-1)' },
+      { y:y(last.actual), t:'Today', v:f1(last.actual)+'°', c:'var(--series-2)' },
+    ], 30, m.t + 6, H - m.b - 10);
+    labs.forEach(l => {
+      S('line', { x1:x(n)+14, x2:x(n)+26, y1:l.y-4, y2:l.y-4, stroke:l.c, 'stroke-width':2 }, svg);
+      const tx = S('text', { x:x(n)+32, y:l.y, class:'dl' }, svg); tx.textContent = l.t + ' ';
+      const ts = S('tspan', { class:'v' }, tx); ts.textContent = l.v;
+      const sub = S('text', { x:x(n)+32, y:l.y+14, class:'ax' }, svg);
+      sub.textContent = l.t === 'Tomorrow' ? `${f1(t.lo)}–${f1(t.hi)}°` : 'actual';
+    });
+  }
+  // hover layer
+  const cross = S('line', { y1:m.t, y2:H-m.b, stroke:'var(--cross)', opacity:0 }, svg);
+  const dots = ['var(--series-2)','var(--series-1)','var(--color-steel)'].map(c => S('circle', { r:4.5, fill:c, stroke:'var(--ring-card)', 'stroke-width':2, opacity:0 }, svg));
+  const hit = S('rect', { x:m.l, y:m.t, width:x(n)+half-m.l, height:H-m.t-m.b, fill:'transparent', style:'cursor:crosshair' }, svg);
+  const move = e => {
+    const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(n, Math.round(x.inv(e.clientX - r.left)))), p = all[i];
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
+    [[p.actual, 0], [p.pred, 1], [p.base, 2]].forEach(([v, k]) => {
+      if (v == null){ dots[k].setAttribute('opacity', 0); return; }
+      dots[k].setAttribute('cx', x(i)); dots[k].setAttribute('cy', y(v)); dots[k].setAttribute('opacity', 1); });
+    const isT = i === n, err = isT ? null : p.actual - p.pred;
+    showTip(`<b>${isT ? 'Tomorrow · ' : ''}${fmtLong(p.date)}</b>
+      <div class="r"><span><i class="sw s2"></i> Actual</span><span>${isT ? 'Pending' : f1(p.actual)+' °C'}</span></div>
+      <div class="r"><span><i class="sw s1"></i> Predicted</span><span>${f1(p.pred)} °C</span></div>
+      <div class="r"><span><i class="sw band"></i> 80% interval</span><span>${f1(p.lo)} – ${f1(p.hi)}</span></div>
+      <div class="r"><span><i class="sw dash"></i> Baseline</span><span>${f1(p.base)} °C</span></div>
+      ${isT ? '' : `<div class="r"><span>Error</span><span>${sgn(-err)} °C</span></div>`}`, e.clientX, e.clientY);
+  };
+  hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
+  hit.addEventListener('pointerleave', () => { hideTip(); cross.setAttribute('opacity', 0); dots.forEach(d => d.setAttribute('opacity', 0)); });
+}
+
+/* Generic small line chart (registry history, live error) */
+function drawLine(el, { pts, refs = [], height = 220, fmtY, xLabel, tipHtml, dots = false, hi = -1 }){
+  el.innerHTML = '';
+  const W = el.clientWidth, H = height, m = { t:14, r:14, b:28, l:44 };
+  const ys = pts.map(p => p.y).concat(refs.map(r => r.y));
+  let y0 = Math.min(...ys), y1 = Math.max(...ys); const pad = (y1-y0)*.18 || .05; y0 -= pad; y1 += pad;
+  const x = lin(0, pts.length-1, m.l, W-m.r), y = lin(y0, y1, H-m.b, m.t);
+  const svg = S('svg', { width:W, height:H, viewBox:`0 0 ${W} ${H}`, role:'img', 'aria-label':el.dataset.label || '' }, el);
+  ticks(y0, y1, 4).forEach(v => {
+    S('line', { x1:m.l, x2:W-m.r, y1:y(v), y2:y(v), stroke:'var(--grid)' }, svg);
+    S('text', { x:m.l-8, y:y(v)+4, 'text-anchor':'end', class:'ax' }, svg).textContent = fmtY(v);
+  });
+  const every = Math.ceil(pts.length / (W < 420 ? 4 : 6));
+  pts.forEach((p, i) => { if ((pts.length-1-i) % every === 0) S('text', { x:x(i), y:H-8, 'text-anchor':'middle', class:'ax' }, svg).textContent = xLabel(p, i); });
+  refs.forEach(r => {
+    S('line', { x1:m.l, x2:W-m.r, y1:y(r.y), y2:y(r.y), stroke:r.color, 'stroke-width':1.5, 'stroke-dasharray':'4 3' }, svg);
+    S('text', { x:W-m.r, y:y(r.y)-6, 'text-anchor':'end', class:'ax', style:'fill:var(--chart-text)' }, svg).textContent = r.label;
+  });
+  S('path', { d:'M' + pts.map((p, i) => `${x(i).toFixed(1)},${y(p.y).toFixed(1)}`).join('L'), fill:'none',
+    stroke:'var(--series-1)', 'stroke-width':2, 'stroke-linejoin':'round', 'stroke-linecap':'round' }, svg);
+  if (dots) pts.forEach((p, i) => S('circle', { cx:x(i), cy:y(p.y), r:i === hi ? 5.5 : 4, fill:i === hi ? 'var(--highlight)' : 'var(--series-1)', stroke:'var(--ring-tile)', 'stroke-width':2 }, svg));
+  else S('circle', { cx:x(pts.length-1), cy:y(pts[pts.length-1].y), r:4.5, fill:'var(--series-1)', stroke:'var(--ring-tile)', 'stroke-width':2 }, svg);
+  const cross = S('line', { y1:m.t, y2:H-m.b, stroke:'var(--cross)', opacity:0 }, svg);
+  const dot = S('circle', { r:5, fill:'var(--series-1)', stroke:'var(--ring-tile)', 'stroke-width':2, opacity:0 }, svg);
+  const hit = S('rect', { x:m.l-8, y:0, width:W-m.l-m.r+16, height:H, fill:'transparent' }, svg);
+  const move = e => { const r = svg.getBoundingClientRect(), i = Math.max(0, Math.min(pts.length-1, Math.round(x.inv(e.clientX - r.left))));
+    cross.setAttribute('x1', x(i)); cross.setAttribute('x2', x(i)); cross.setAttribute('opacity', 1);
+    dot.setAttribute('cx', x(i)); dot.setAttribute('cy', y(pts[i].y)); dot.setAttribute('opacity', 1);
+    showTip(tipHtml(pts[i], i), e.clientX, e.clientY); };
+  hit.addEventListener('pointermove', move); hit.addEventListener('pointerdown', move);
+  hit.addEventListener('pointerleave', () => { hideTip(); cross.setAttribute('opacity', 0); dot.setAttribute('opacity', 0); });
+}
+
+/* ═══════════════════════ CITY PAGE RENDER ═══════════════════════ */
+function renderCity(key){
+  const c = CITIES[key], d = DATA[key], t = d.tomorrow, last = d.rows[d.rows.length-1];
+  $('#lnTitle').textContent = c.name;
+  $$('#citySeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.city === key)));
+  $('#hCoords').textContent = `${f2(c.lat)}° N · ${f2(c.lon)}° E · ${c.region}`;
+  $('#hName').textContent = c.name;
+  $('#hTemp').textContent = f1(t.pred);
+  $('#hDate').textContent = `Predicted maximum for ${fmtLong(t.date)}`;
+  $('#hInt').textContent = `80% interval ${f1(t.lo)} – ${f1(t.hi)} °C`;
+  $('#hToday').textContent = `${f1(last.actual)} °C`;
+  $('#hBase').textContent = `${f1(t.base)} °C`;
+  $('#hMae').textContent = `${f2(d.mae30)} °C`;
+  // re-trigger the hero rise animation on city switch
+  $$('.chero .rise').forEach(el => { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+  drawForecast(); drawOutlook(); renderMonitor(); renderLog(); fillWhatIf(key);
+  if (!renderCity.once){ renderModels(); renderPipeline(); renderCity.once = true; } else { drawVersions(); }
+}
+
+function drawOutlook(){
+  const d = DATA[state.city], o = d.outlook;
+  const lo = Math.min(...o.map(p => p.lo)) - .5, hi = Math.max(...o.map(p => p.hi)) + .5, s = v => (v-lo)/(hi-lo)*100;
+  $('#outlook').innerHTML = o.map((p, i) => `
+    <div class="tile ol${i === 0 ? ' first' : ''}" aria-label="${fmtLong(p.date)}: ${f1(p.pred)} degrees, interval ${f1(p.lo)} to ${f1(p.hi)}">
+      <div class="day">${i === 0 ? 'Tomorrow' : fmtDow(p.date)}</div><div class="date">${fmtDate(p.date)}</div>
+      <div class="t num">${f1(p.pred)}°</div>
+      <div class="track"><span class="rng" style="left:${s(p.lo)}%;width:${s(p.hi)-s(p.lo)}%"></span><span class="mid" style="left:${s(p.pred)}%"></span></div>
+      <div class="iv num">${f1(p.lo)} – ${f1(p.hi)}°</div>
+    </div>`).join('');
+}
+
+/* Models */
+function renderModels(){
+  const champ = MODELS.find(m => m.champion), base = MODELS.find(m => m.id === 'baseline');
+  const rival = MODELS.filter(m => !m.champion && m.id !== 'baseline').sort((a,b) => a.mae - b.mae)[0] || base;
+  const margin = rival.mae - champ.mae, gain = base.mae - champ.mae;
+  $('#mLead').textContent = `${champ.name} wins by ${f3(margin)} °C.`;
+  $('#mReason').textContent = LIVE.on
+    ? `On the newest 15% of dates ${champ.name}'s MAE of ${f3(champ.mae)} °C against ${rival.name.toLowerCase()} at ${f3(rival.mae)} °C. The lowest held-out MAE is promoted to the registry and served. It ${gain >= 0 ? 'beats' : 'trails'} the “tomorrow = today” baseline by ${f3(Math.abs(gain))} °C (${(Math.abs(gain)/base.mae*100).toFixed(1)}%).`
+    : `On the held-out set Ridge's MAE of ${f3(champ.mae)} °C edges out ${rival.name.toLowerCase()} at ${f3(rival.mae)} °C, a margin well inside run-to-run noise. Ridge stays champion because it is the simplest model that clears the bar and the cheapest to serve, and it beats the “tomorrow = today” baseline by ${f3(gain)} °C (${(gain/base.mae*100).toFixed(1)}%).`;
+  $('#mGrid').innerHTML = MODELS.map(m => {
+    const dv = (m.mae - base.mae) / base.mae * 100;
+    return `<div class="tile mt${m.champion ? ' champ' : ''}">
+      <div class="hd"><div><div class="nm">${m.name}</div><div class="sb">${m.sub}</div></div>
+        ${m.champion ? '<span class="badge champ">★ Champion</span>' : m.id === 'baseline' ? '<span class="badge neutral">Reference</span>' : ''}</div>
+      <div class="lbl">MAE</div>
+      <div class="mae num">${f3(m.mae)}<small>°C</small></div>
+      <div class="row num"><span>RMSE <b>${f3(m.rmse)}</b></span><span>R² <b>${f3(m.r2)}</b></span></div>
+      <div class="delta">${m.id === 'baseline' ? 'Every model has to beat this' : `${dv.toFixed(1)}% MAE vs baseline`}${!m.champion && m.id !== 'baseline' ? ` · +${f3(m.mae - champ.mae)} °C vs Ridge` : ''}</div>
+    </div>`; }).join('');
+  const mx = IMPORTANCE.length ? IMPORTANCE[0][1] : 1;
+  if (LIVE.on) $('#fiSub').textContent = champ.id === 'ridge' ? 'Ridge standardised coefficients, absolute value, normalised' : champ.name + ' feature importance, normalised';
+  $('#fiBars').innerHTML = IMPORTANCE.map(([k, v]) => `<span class="k">${k}</span><span class="bar" title="${k}: ${f2(v)}"><i style="width:${v/mx*100}%"></i></span><span class="v">${f2(v)}</span>`).join('');
+  drawVersions();
+}
+function drawVersions(){
+  const el = $('#verChart'); const serving = LIVE.on && LIVE.ov.model ? LIVE.ov.model.registry_version : 13;
+  el.dataset.label = `Hold-out MAE by registry version, v1 to v${serving}`;
+  if (!VERSIONS.length){ el.innerHTML = '<div class="term-empty">No registered versions yet.</div>'; return; }
+  drawLine(el, { pts:VERSIONS.map(v => ({ ...v, y:v.mae })), dots:true, hi:VERSIONS.length-1, height:240,
+    fmtY:v => v.toFixed(2), xLabel:p => 'v' + p.v,
+    tipHtml:p => `<b>v${p.v}${p.v === serving ? ' · serving' : ''}</b><div class="r"><span>Model</span><span>${p.type}</span></div><div class="r"><span>MAE</span><span>${f3(p.mae)} °C</span></div><div class="r"><span>Registered</span><span>${fmtDate(p.date)}</span></div>` });
+}
+
+/* Monitor */
+function errSeries(){
+  const d = DATA[state.city], rows = d.rows, M = MON[state.mon], n = Math.min(45, rows.length - 6), out = [];
+  const abs = rows.map(r => Math.abs(r.actual - r.pred));
+  if (LIVE.on) return rows.slice(-n).map((r, i) => { const j = rows.length - n + i; return { y:mean(abs.slice(j - 6, j + 1)), date:r.date }; });
+  const roll = abs.map((_, i) => i < 6 ? null : mean(abs.slice(i-6, i+1)));
+  const tail = roll.slice(-n), lastR = tail[n-1];
+  tail.forEach((v, i) => { const ratio = 1 + (v/lastR - 1)*0.3;
+    const f = state.mon === 'RETRAIN' ? (i < n-15 ? M.f0 : M.f0 + (M.f1-M.f0)*((i-(n-15))/14)) : M.f0 + (M.f1-M.f0)*(i/(n-1));
+    let y = TRAIN_MAE * f * (i === n-1 ? 1 : ratio);
+    if (state.mon !== 'RETRAIN' || i < n-15) y = Math.min(y, TRIGGER*0.94);   // keep the story honest: only RETRAIN crosses the trigger
+    out.push({ y, date: rows[rows.length-n+i].date }); });
+  return out;
+}
+function renderMonitor(){
+  const M = MON[state.mon], ser = errSeries(), live = LIVE.on && LIVE.mon ? LIVE.mon.live_mae : ser[ser.length-1].y, pct = (live/TRAIN_MAE - 1)*100;
+  const feats = LIVE.on ? FEATURES : FEATURES.map(f => ({ ...f, psi: f.psi * M.psiScale }));
+  const drifted = feats.filter(f => LIVE.on ? f.drifted : f.psi >= .1).length;
+  const badge = `<span class="ic" aria-hidden="true">${M.ic}</span>${M.label}`;
+  $('#monBadge').className = 'badge ' + M.cls; $('#monBadge').innerHTML = badge;
+  if (!LIVE.on) $('#capSub').textContent = `Next run 06:00 IST · Monitor on ${M.label}`;
+  $$('#monSeg button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === state.mon)));
+  document.body.classList.toggle('retrain', state.mon === 'RETRAIN');
+  $('#alertMsg').textContent = `Live error is ${pct.toFixed(0)}% above training (trigger +25%).`;
+  let T = {
+    OK: ['Stable. No action needed.',
+      `Feature distributions match the training window (every PSI below 0.10) and live error is ${f2(live)} °C against ${f3(TRAIN_MAE)} °C in training.`],
+    WATCH: ['Seasonal drift: expected, not a fault.',
+      `All ${drifted} features read as drifted because the model was trained on January–June and is now forecasting October–November. Temperature lags moved from about 28 °C to 30 °C, and the day-of-year features shift by construction. Drift alone doesn't hurt accuracy: live error is ${f2(live)} °C against ${f3(TRAIN_MAE)} °C in training (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%), below the +25% retrain trigger. That is why the monitor says Watch, not Retrain.`],
+    RETRAIN: ['Live error crossed the retrain trigger.',
+      `On top of the seasonal drift, live error has climbed to ${f2(live)} °C against ${f3(TRAIN_MAE)} °C in training (+${pct.toFixed(0)}%), past the +25% trigger. Retraining on a window that includes October–November should close the gap.`],
+  }[state.mon];
+  if (LIVE.on){
+    const m = LIVE.mon, reasons = m ? (m.reasons || []).join('; ') : '';
+    T = !m ? ['No monitoring run yet.', 'Run the Monitor step in the pipeline to compare recent data with the training data.']
+      : [{ OK:'Stable. No action needed.', WATCH:'Drift detected. Watching, not retraining yet.', RETRAIN:'Retrain recommended.' }[m.decision],
+         `${reasons ? reasons[0].toUpperCase() + reasons.slice(1) + '. ' : 'No drift flags. '}Live error is ${f3(live)} °C against ${f3(TRAIN_MAE)} °C at training (${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%), and the retrain trigger is +25% (${f2(TRIGGER)} °C). Reference: ${m.reference}.`];
+    $('#monChecked').textContent = m ? `Window ${m.window[0]} – ${m.window[1]} · ${m.rows} rows` : 'Not run yet';
+    $('#capSub').textContent = `Data through ${LIVE.ov.gold ? LIVE.ov.gold.latest : 'n/a'} · Monitor on ${M.label}${LIVE.ov.model ? ' · trained ' + whenStr(LIVE.ov.model.trained_at) : ''}`;
+  }
+  $('#monTitle').textContent = T[0]; $('#monBody').textContent = T[1];
+  $('#kLive').innerHTML = `${f2(live)}<small>°C</small>`;
+  $('#kLiveN').textContent = `${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% vs training · trigger at +25% (${f2(TRIGGER)} °C)`;
+  $('#kDrift').innerHTML = `${drifted}<small>of ${feats.length}</small>`;
+  $('#kDriftN').textContent = drifted ? 'PSI ≥ 0.10 · mostly seasonal' : 'All PSI below 0.10';
+  // PSI bars
+  const MAX = Math.max(.6, ...feats.map(f => f.psi)), pos = v => v/MAX*100;
+  const ticks = MAX > 1.2 ? [0,.2,1,2,3].filter(v => v <= MAX) : [0,.1,.2,.5];
+  $('#psiScale').innerHTML = ticks.map(v => `<span style="left:${pos(v)}%">${v === 0 ? '0' : v.toFixed(1)}</span>`).join('');
+  $('#psiBars').innerHTML = feats.map(f => {
+    const st = f.psi >= .2 ? ['maj','▲','Drifted'] : f.psi >= .1 ? ['mod','◆','Moderate'] : ['', '✓', 'Stable'];
+    return `<span class="k">${f.f}</span>
+      <span class="bar" title="${f.f}: PSI ${f2(f.psi)}"><i class="${st[0]}" style="width:${Math.min(100,pos(f.psi))}%"></i>
+        <span class="thr" style="left:${pos(.1)}%"></span><span class="thr" style="left:${pos(.2)}%"></span></span>
+      <span class="v">${f2(f.psi)}</span><span class="st"><span class="ic" aria-hidden="true">${st[1]}</span>${st[2]}</span>`; }).join('');
+  $('#shiftTbl').innerHTML = `<thead><tr><th>Feature</th><th>Training mean</th><th>Live mean</th></tr></thead><tbody>` +
+    FEATURES.slice(0,6).map(f => `<tr><td>${f.f}</td><td>${f.tr}</td><td>${state.mon === 'OK' && !LIVE.on ? f.tr : f.lv}</td></tr>`).join('') + '</tbody>';
+  // live vs training error
+  const el = $('#errChart'); el.dataset.label = `Rolling 7-day live MAE versus training MAE, last 45 days. Latest ${f2(live)} degrees.`;
+  drawLine(el, { pts:ser, height:250, fmtY:v => v.toFixed(2), xLabel:p => fmtDate(p.date),
+    refs:[{ y:TRAIN_MAE, label:`Training ${f3(TRAIN_MAE)}`, color:'var(--color-steel)' }, { y:TRIGGER, label:`Retrain trigger ${f2(TRIGGER)}`, color:'var(--trigger)' }],
+    tipHtml:p => `<b>${fmtLong(p.date)}</b><div class="r"><span>Live 7-day MAE</span><span>${f2(p.y)} °C</span></div><div class="r"><span>vs training</span><span>${((p.y/TRAIN_MAE-1)*100).toFixed(0)}%</span></div>` });
+}
+$$('#monSeg button').forEach(b => b.addEventListener('click', () => { state.mon = b.dataset.s; renderMonitor(); }));
+$('#alertRetrain').addEventListener('click', () => {
+  if (!state.city) flyIn('bengaluru');
+  setTimeout(() => { $('#s-pipeline').scrollIntoView({ behavior:'smooth' }); setTimeout(() => runStep(LIVE.on ? 'auto' : 'train', true), 700); }, state.city ? 0 : 4200);
+});
+
+/* Prediction log (forecast vs actual) */
+function renderLog(){
+  const d = DATA[state.city], rows = d.rows.slice(-14).reverse(), t = d.tomorrow;
+  const errs = rows.map(r => r.actual - r.pred), inside = rows.filter(r => r.actual >= r.lo && r.actual <= r.hi).length;
+  $('#logSum').innerHTML = `<div>MAE, last 14 days<b class="num">${f2(mean(errs.map(Math.abs)))} °C</b></div>
+    <div>Inside the 80% interval<b class="num">${inside} of 14</b></div>
+    <div>Bias (mean error)<b class="num">${sgn(-mean(errs))} °C</b></div>`;
+  const tr = (r, pending) => {
+    const made = fmtDate(addDays(r.date, -1)) + ', 06:04';
+    if (pending) return `<tr class="pending"><td>${fmtLong(r.date)}</td><td>${made}</td><td class="r">${f1(r.pred)}</td><td class="r">${f1(r.lo)} – ${f1(r.hi)}</td><td class="r">Pending</td><td class="r">—</td><td><span class="hit"><span class="ic" aria-hidden="true">◌</span>Awaiting reading</span></td></tr>`;
+    const e = r.pred - r.actual, ok = r.actual >= r.lo && r.actual <= r.hi;
+    return `<tr><td>${fmtLong(r.date)}</td><td>${made}</td><td class="r">${f1(r.pred)}</td><td class="r">${f1(r.lo)} – ${f1(r.hi)}</td><td class="r">${f1(r.actual)}</td><td class="r">${sgn(e)}</td>
+      <td><span class="hit ${ok ? 'in' : 'out'}"><span class="ic" aria-hidden="true">${ok ? '✓' : '✕'}</span>${ok ? 'Inside' : (r.actual > r.hi ? 'Above' : 'Below') + ' interval'}</span></td></tr>`;
+  };
+  $('#logTbl').innerHTML = `<thead><tr><th>Target date</th><th>Forecast made</th><th class="r">Forecast °C</th><th class="r">80% interval</th><th class="r">Actual °C</th><th class="r">Error</th><th>Result</th></tr></thead>
+    <tbody>${tr(t, true)}${rows.map(r => tr(r, false)).join('')}</tbody>`;
+}
+
+/* ═══════════════════════ PIPELINE ═══════════════════════ */
+const STEPS = [
+  { id:'ingest',   step:'Ingest',   stage:'Bronze',  sub:'Open-Meteo JSON → parquet',      stats:['3 cities · 2,193 rows','Updated today 06:02'] },
+  { id:'clean',    step:'Clean',    stage:'Silver',  sub:'Typed, de-duplicated, gap-filled', stats:['2,190 rows · 0 nulls','Updated today 06:02'] },
+  { id:'features', step:'Features', stage:'Gold',    sub:'Lags, rolling means, season',      stats:['2,169 rows · 14 features','Updated today 06:03'] },
+  { id:'train',    step:'Train',    stage:'MLflow',  sub:'Ridge · RF · HGB vs baseline',     stats:['4 runs · champion Ridge','Registry v13'] },
+  { id:'serve',    step:'Promote',  stage:'FastAPI', sub:'Serves /forecast and /predict',    stats:['Ridge v13 · healthy','p50 latency 4 ms'] },
+  { id:'monitor',  step:'Monitor',  stage:'Monitor', sub:'PSI drift + live error',           stats:['9 features checked','Updated today 06:05'] },
+];
+const LOGS = {
+  ingest:  [['INFO','GET archive-api.open-meteo.com city=udupi 2024-11-07…today'],['INFO','udupi: 731 days received'],['INFO','GET … city=mangaluru'],['INFO','mangaluru: 731 days received'],['INFO','GET … city=bengaluru'],['WARN','bengaluru: 2 missing hours on 29 Oct, left for silver to gap-fill'],['INFO','wrote data/bronze/weather.parquet (2,193 rows)']],
+  clean:   [['INFO','reading bronze (2,193 rows)'],['INFO','cast types, drop 3 duplicate rows'],['INFO','gap-filled 2 hours by linear interpolation'],['INFO','wrote data/silver/weather.parquet (2,190 rows, 0 nulls)']],
+  features:[['INFO','building lags tmax_lag1..2, tmin_lag1'],['INFO','rolling means tmax_roll7'],['INFO','season encoding doy_sin, doy_cos'],['INFO','target = tmax shifted −1 day'],['INFO','wrote data/gold/features.parquet (2,169 rows × 14)']],
+  train:   [['INFO','mlflow experiment "tmax-next-day"'],['INFO','baseline (tomorrow = today): MAE 1.284'],['INFO','ridge α=1.0: MAE 1.118  RMSE 1.452  R² 0.708'],['INFO','random_forest n=300: MAE 1.121  RMSE 1.468  R² 0.701'],['INFO','hist_gb lr=0.05: MAE 1.135  RMSE 1.489  R² 0.693'],['INFO','champion: ridge (wins by 0.003 °C)'],['INFO','registered model tmax-ridge v13']],
+  serve:   [['INFO','loading models:/tmax-ridge/13'],['INFO','warm-up predict for 3 cities ok'],['INFO','GET /health → 200 {"model":"ridge","version":13}']],
+  monitor: [['INFO','live window: last 30 days, 90 rows'],['WARN','PSI > 0.25 on 7 of 9 features (seasonal: Jan–Jun → Oct–Nov)'],['INFO','live MAE 1.21 vs train 1.118 (+8%), trigger +25%'],['INFO','status = WATCH']],
+};
+let logLines = [];
+const stamp = (h, m, s) => `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+(function seedLog(){
+  let s = 0; const push = (l, msg) => { logLines.push({ ts:stamp(6, Math.floor(s/60), s%60), l, msg }); s += 3 + (s % 5); };
+  push('INFO','scheduled run 06:00 IST started');
+  push('ERROR','open-meteo: read timeout after 10 s (attempt 1 of 3)'); push('INFO','retry ok after 2.1 s');
+  STEPS.forEach(st => LOGS[st.id].forEach(([l, m]) => push(l, `[${st.id}] ${m}`)));
+  push('INFO','scheduled run finished in 4 m 51 s');
+})();
+var stepState = Object.fromEntries(STEPS.map(s => [s.id, 'done']));
+
+function renderPipeline(){
+  if (LIVE.on){
+    $('#plActions').innerHTML = `<button class="btn btn-blue btn-sm" id="runAll">Run all steps</button>` +
+      [['ingest','Ingest'],['clean','Transform'],['train','Train'],['monitor','Monitor']].map(([id, t]) => `<button class="btn btn-outline btn-sm" data-api="${id}">${t}</button>`).join('') +
+      `<button class="btn btn-quiet btn-sm" id="runLive" title="Pull today's readings from Open-Meteo and rebuild the features. No retraining; the forecast moves to tomorrow.">Refresh live data</button>` +
+      `<button class="btn btn-outline btn-sm" id="runAuto" title="Run everything, then retrain automatically if the monitor says RETRAIN">All + auto-retrain</button>` +
+      `<button class="btn btn-quiet btn-sm" id="runDemo" title="Train on dry-season data, monitor the monsoon, retrain. Takes a few minutes.">Drift demo</button>`;
+    $('#runAll').addEventListener('click', runAll);
+    $('#runAuto').addEventListener('click', () => liveRun('all-auto'));
+    $('#runLive').addEventListener('click', () => liveRun('live'));
+    $('#runDemo').addEventListener('click', () => liveRun('demo'));
+    $$('#plActions [data-api]').forEach(b => b.addEventListener('click', () => runStep(b.dataset.api)));
+  } else {
+  $('#plActions').innerHTML = `<button class="btn btn-blue btn-sm" id="runAll">Run all steps</button>` +
+    STEPS.map(s => `<button class="btn btn-outline btn-sm" data-step="${s.id}">${s.step}</button>`).join('');
+  $('#runAll').addEventListener('click', runAll);
+  $$('#plActions [data-step]').forEach(b => b.addEventListener('click', () => runStep(b.dataset.step)));
+  }
+  ['ALL','INFO','WARN','ERROR'].forEach(l => { const b = document.createElement('button'); b.dataset.l = l;
+    b.addEventListener('click', () => { state.logLevel = l; drawLogs(); }); $('#logSeg').appendChild(b); });
+  drawFlow(); drawLogs(true);
+}
+function drawFlow(){
+  $('#plCard').classList.toggle('fresh', state.fresh);
+  $('#flow').innerHTML = STEPS.map((s, i) => {
+    const st = stepState[s.id], prevOk = i === 0 || stepState[STEPS[i-1].id] === 'done';
+    const label = st === 'done' ? ['●', 'Ready'] : st === 'running' ? ['◌', 'Running…'] : prevOk ? ['○', 'Not created yet'] : ['○', `Waiting for ${STEPS[i-1].stage}`];
+    const stats = st === 'done' ? s.stats.join('<br>') : st === 'running' ? 'Working…' : 'Empty';
+    return `<div class="tile node ${st === 'done' ? 'done' : st === 'running' ? 'running' : 'empty'}" id="node-${s.id}">
+      <span class="n">0${i+1} · ${s.step}</span><span class="st-name">${s.stage}</span><span class="sub">${s.sub}</span>
+      <span class="stats">${stats}</span><span class="state"><span class="ic" aria-hidden="true">${label[0]}</span>${label[1]}</span>
+      ${st === 'empty' && prevOk && !state.running ? `<button class="btn btn-outline btn-sm runbtn" data-run="${s.id}">Run ${s.step}</button>` : ''}
+      <span class="prog"></span></div>`; }).join('');
+  $$('#flow [data-run]').forEach(b => b.addEventListener('click', () => runStep(b.dataset.run)));
+  $$('#plActions button').forEach(b => {
+    const id = b.dataset.step; if (!id){ b.disabled = state.running; return; }
+    const i = STEPS.findIndex(s => s.id === id);
+    b.disabled = state.running || (i > 0 && stepState[STEPS[i-1].id] !== 'done');
+  });
+  $('#guideRun').disabled = state.running;
+}
+function drawLogs(scroll){
+  const body = $('#logBody'), q = state.logQ.toLowerCase();
+  const counts = { ALL:logLines.length, INFO:0, WARN:0, ERROR:0 }; logLines.forEach(l => counts[l.l]++);
+  $$('#logSeg button').forEach(b => { b.textContent = `${b.dataset.l === 'ALL' ? 'All' : b.dataset.l[0] + b.dataset.l.slice(1).toLowerCase()} ${counts[b.dataset.l]}`;
+    b.setAttribute('aria-pressed', String(b.dataset.l === state.logLevel)); });
+  const vis = logLines.filter(l => (state.logLevel === 'ALL' || l.l === state.logLevel) && (!q || l.msg.toLowerCase().includes(q)));
+  const esc = s => s.replace(/[&<>]/g, ch => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[ch]));
+  body.innerHTML = vis.length ? vis.map(l => `<div class="ln${l.fresh ? ' new' : ''}" data-l="${l.l}"><span class="ts">${l.ts}</span><span class="lv">${l.l}</span><span class="msg">${esc(l.msg)}</span></div>`).join('')
+    + (state.running ? '<div class="ln"><span class="ts"></span><span></span><span><span class="cursor"></span></span></div>' : '')
+    : '<div class="term-empty">No lines match this filter.</div>';
+  logLines.forEach(l => delete l.fresh);
+  if (scroll !== false) body.scrollTop = body.scrollHeight;
+}
+function nowStamp(){ const d = new Date(); return stamp(d.getHours(), d.getMinutes(), d.getSeconds()); }
+
+/* Live runs: POST /api/run/<step>, then poll GET /api/job?since=<cursor> and append the lines. */
+const API_STEP = { live:'live', ingest:'ingest', clean:'transform', features:'transform', train:'train', serve:'train', monitor:'monitor', auto:'all-auto' };
+const PREFIX_NODES = { '[ingest]':['ingest'], '[transform]':['clean','features'], '[train]':['train','serve'], '[pipeline]':['train','serve'], '[monitor]':['monitor'] };
+const lvl = l => /Traceback|Error|failed|could not/i.test(l) ? 'ERROR' : /WARN|DRIFT|WATCH|RETRAIN/.test(l) ? 'WARN' : 'INFO';
+function updatePins(){
+  ORDER.forEach(k => $$(`.pin[data-city="${k}"] .pin-label .t`).forEach(t => t.textContent = f1(DATA[k].tomorrow.pred) + '°'));
+}
+async function liveRun(apiStep, attach){
+  if (state.running && !attach) return;
+  state.running = true;
+  try { if (!attach) await getJSON('/api/run/' + apiStep, { method:'POST' }); }
+  catch (e) { logLines.push({ ts:nowStamp(), l:'ERROR', msg:`could not start ${apiStep}: ${e.message}`, fresh:true }); state.running = false; drawFlow(); drawLogs(); return; }
+  let since = 0, j, monSeen = false;
+  const base = Object.fromEntries(STEPS.map(s => [s.id, stepState[s.id]]));
+  do {
+    await sleep(700);
+    try { j = await getJSON('/api/job?since=' + since); } catch (e) { continue; }
+    since += j.lines.length;
+    j.lines.forEach(line => {
+      logLines.push({ ts:nowStamp(), l:lvl(line), msg:line, fresh:true });
+      const pre = Object.keys(PREFIX_NODES).find(p => line.startsWith(p));
+      if (pre){ STEPS.forEach(s => stepState[s.id] = base[s.id] === 'empty' ? 'empty' : 'done'); PREFIX_NODES[pre].forEach(id => stepState[id] = 'running'); }
+      if (/DECISION:/.test(line)) monSeen = true;
+    });
+    if (j.lines.length){ drawFlow(); drawLogs(); }
+    if (monSeen){ monSeen = false; try { const ov = await getJSON('/api/overview'); LIVE.ov = ov; applyMonitor(ov); renderMonitor(); } catch (e) {} }
+  } while (j.state === 'running');
+  logLines.push({ ts:nowStamp(), l:j.state === 'done' ? 'INFO' : 'ERROR', msg:`job ${j.state} (exit ${j.returncode})`, fresh:true });
+  try { await refreshLive(); } catch (e) { console.warn(e); }
+  state.running = false;
+  updatePins();
+  renderModels(); if (state.city) renderCity(state.city); drawFlow(); drawLogs();
+}
+async function runStep(id, alone = true){
+  if (LIVE.on) return liveRun(API_STEP[id] || id);
+  if (state.running && alone) return;
+  const i = STEPS.findIndex(s => s.id === id);
+  if (i > 0 && stepState[STEPS[i-1].id] !== 'done') return;
+  if (alone) state.running = true;
+  stepState[id] = 'running';
+  // Real backend: POST /api/run/{id}, then poll GET /api/job?since=<cursor> and append the returned lines.
+  logLines.push({ ts:nowStamp(), l:'INFO', msg:`POST /api/run/${id}`, fresh:true });
+  drawFlow(); drawLogs();
+  for (const [l, m] of LOGS[id]){
+    await sleep(REDUCE ? 30 : 260 + Math.random()*380);
+    logLines.push({ ts:nowStamp(), l, msg:`[${id}] ${m}`, fresh:true }); drawLogs();
+  }
+  await sleep(REDUCE ? 0 : 300);
+  stepState[id] = 'done';
+  const s = STEPS[i]; s.stats = [s.stats[0], 'Updated just now'];
+  logLines.push({ ts:nowStamp(), l:'INFO', msg:`[${id}] done`, fresh:true });
+  if (id === 'train' && state.mon === 'RETRAIN'){ state.mon = 'WATCH'; renderMonitor(); logLines.push({ ts:nowStamp(), l:'INFO', msg:'[monitor] re-checked after retrain → WATCH', fresh:true }); }
+  if (alone) state.running = false;
+  drawFlow(); drawLogs();
+}
+async function runAll(){
+  if (LIVE.on) return liveRun('all');
+  if (state.running) return; state.running = true;
+  for (const s of STEPS) await runStep(s.id, false);
+  state.running = false; drawFlow(); drawLogs();
+}
+$('#guideRun').addEventListener('click', () => runStep('ingest'));
+$('#freshToggle').addEventListener('click', () => {
+  if (state.running) return;
+  state.fresh = !state.fresh;
+  STEPS.forEach(s => stepState[s.id] = state.fresh ? 'empty' : 'done');
+  $('#freshToggle').textContent = state.fresh ? 'Restore the built pipeline' : 'Simulate a fresh install';
+  if (state.fresh){ logLines = []; } drawFlow(); drawLogs();
+});
+$('#logQ').addEventListener('input', e => { state.logQ = e.target.value; drawLogs(false); });
+$('#logClear').addEventListener('click', () => { logLines = []; drawLogs(); });
+$('#logDl').addEventListener('click', () => {
+  const q = state.logQ.toLowerCase();
+  const txt = logLines.filter(l => (state.logLevel === 'ALL' || l.l === state.logLevel) && (!q || l.msg.toLowerCase().includes(q)))
+    .map(l => `${l.ts} ${l.l.padEnd(5)} ${l.msg}`).join('\n') + '\n';
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type:'text/plain' }));
+  a.download = `tmax-pipeline-${TODAY.toISOString().slice(0,10)}.log`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
+/* ═══════════════════════ WHAT-IF ═══════════════════════ */
+const WF = ['tmax','tmin','tmaxY','roll7','rad','precip','wind'];
+function fillWhatIf(key){ $('#wf-city').value = key; const t = DATA[key].today; WF.forEach(k => $('#wf-' + k).value = t[k]); scoreWhatIf(); }
+let wfSeq = 0;
+async function scoreWhatIfLive(key, v){
+  const d = DATA[key], seq = ++wfSeq;
+  const f = { ...d.features, tmax:v.tmax, tmin:v.tmin, tmax_lag1:v.tmaxY, tmax_roll7:v.roll7, radiation:v.rad, precip:v.precip, wind:v.wind };
+  const body = { city:CITIES[key].name, day_of_year:d.doy, ...f };
+  $('#wfApi').textContent = `POST /api/whatif ${JSON.stringify({ city:body.city, tmax:v.tmax, tmin:v.tmin, tmax_lag1:v.tmaxY, tmax_roll7:v.roll7, radiation:v.rad, precip:v.precip, wind:v.wind, '…':'other lags from the latest row' })}`;
+  try {
+    const r = await getJSON('/api/whatif', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+    if (seq !== wfSeq) return;
+    const p = r.predicted_tmax_next_day_c, diff = p - d.tomorrow.pred;
+    $('#wfFor').textContent = `Predicted max for tomorrow, ${CITIES[key].name}`;
+    $('#wfOut').textContent = f1(p);
+    $('#wfMeta').textContent = `80% interval ${f1(p+d.q10)} – ${f1(p+d.q90)} °C · ` + (Math.abs(diff) < .05 ? 'same as the served forecast' : `${sgn(diff)} °C vs the served forecast`);
+  } catch (e) { if (seq === wfSeq) $('#wfMeta').textContent = 'Could not score: ' + e.message; }
+}
+function scoreWhatIf(){
+  const key = $('#wf-city').value, d = DATA[key], b = d.today, v = {};
+  WF.forEach(k => { const x = parseFloat($('#wf-' + k).value); v[k] = isNaN(x) ? b[k] : x; });
+  if (LIVE.on) return scoreWhatIfLive(key, v);
+  // Mock of POST /predict: a linear response around the served forecast (Ridge is linear, so this is close in spirit).
+  const p = d.tomorrow.pred + .45*(v.tmax-b.tmax) + .15*(v.tmaxY-b.tmaxY) + .25*(v.roll7-b.roll7) + .08*(v.tmin-b.tmin)
+          + .05*(v.rad-b.rad) - .05*(v.precip-b.precip) - .01*(v.wind-b.wind);
+  const diff = p - d.tomorrow.pred;
+  $('#wfFor').textContent = `Predicted max for tomorrow, ${CITIES[key].name}`;
+  $('#wfOut').textContent = f1(p);
+  $('#wfMeta').textContent = `80% interval ${f1(p+d.q10)} – ${f1(p+d.q90)} °C · ` + (Math.abs(diff) < .05 ? 'same as the served forecast' : `${sgn(diff)} °C vs the served forecast`);
+  $('#wfApi').textContent = `POST /predict {"city":"${key}","tmax":${v.tmax},"tmin":${v.tmin},"tmax_lag1":${v.tmaxY},"tmax_roll7":${v.roll7},"radiation":${v.rad},"precip":${v.precip},"wind":${v.wind}}`;
+}
+$('#wf-city').addEventListener('change', e => fillWhatIf(e.target.value));
+WF.forEach(k => $('#wf-' + k).addEventListener('input', scoreWhatIf));
+$('#wfGo').addEventListener('click', () => { const o = $('#wfOut'); o.animate?.([{ opacity:.3 }, { opacity:1 }], { duration:400 }); scoreWhatIf(); });
+$('#wfReset').addEventListener('click', () => fillWhatIf($('#wf-city').value));
+
+/* range control */
+$$('#rangeSeg button').forEach(b => b.addEventListener('click', () => {
+  state.range = +b.dataset.r; $$('#rangeSeg button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawForecast(); }));
+
+/* ═══════════════════════ BOOT ═══════════════════════ */
+await loadLive();
+layoutStage(); setNavCurrent();
+if (GLOBE_OK){ try { initGlobe(); } catch (e) { console.warn('Globe failed, using the photo instead', e); GH.G = null; home.classList.remove('globe-mode'); } }
+if (!GH.G) ORDER.forEach(k => { const b = makePin(k); b.style.left = (CITIES[k].ix*100) + '%'; b.style.top = (CITIES[k].iy*100) + '%'; stage.appendChild(b); });
+let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => {
+  layoutStage(); if (GH.G){ GH.G.width(innerWidth).height(innerHeight); if (GH.mode !== 'off') applyCam(GH.cam, true); }
+  if (state.city){ if (!GH.G) zoomStage(state.city, 7); drawForecast(); renderMonitor(); drawVersions(); if (map){ map.invalidateSize(); map.setView(focusCenter(state.city, map.getZoom()), map.getZoom(), { animate:false }); } }
+}, 150); });
+ensureMap();
+const todayIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const autoLive = () => { if (LIVE.on && !state.running && LIVE.ov.bronze.length && (!LIVE.ov.gold || LIVE.ov.gold.latest < todayIso())) liveRun('live'); };
+if (LIVE.on){ setTimeout(autoLive, 2500); setInterval(() => { if (!state.running) liveRun('live'); }, 30*60*1000); }
+if (LIVE.on) getJSON('/api/job?since=0').then(j => { if (j.state === 'running'){ j.lines.forEach(l => logLines.push({ ts:nowStamp(), l:lvl(l), msg:l })); liveRun('', true); } else if (j.lines.length){ j.lines.forEach(l => logLines.push({ ts:nowStamp(), l:lvl(l), msg:l })); drawLogs(); } }).catch(() => {});
+const m0 = location.hash.match(/^#\/(udupi|mangaluru|bengaluru)$/);
+if (m0) setTimeout(() => flyIn(m0[1]), 500);
+addEventListener('hashchange', () => { const m = location.hash.match(/^#\/(udupi|mangaluru|bengaluru)$/); if (m) go(m[1]); else if (!location.hash && state.city) flyOut(); });
+})();
 </script>
 </body>
 </html>

@@ -19,6 +19,7 @@ MODELS = ROOT / "models"
 REPORTS = ROOT / "reports"
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"   # recent days + today (the archive lags ~5 days)
 CITIES = {                       # name -> (latitude, longitude)
     "Udupi": (13.34, 74.75),
     "Mangaluru": (12.91, 74.86),
