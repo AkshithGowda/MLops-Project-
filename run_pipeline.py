@@ -2,6 +2,7 @@
 
     python run_pipeline.py all                  ingest -> transform -> train -> monitor
     python run_pipeline.py all --auto-retrain   ... and retrain automatically if the monitor says so
+    python run_pipeline.py live                 pull today's readings and rebuild the features (no retraining)
     python run_pipeline.py monitor              check the current model only
 """
 import argparse
@@ -14,7 +15,7 @@ import transform
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("step", choices=["ingest", "transform", "train", "monitor", "all"])
+    ap.add_argument("step", choices=["ingest", "live", "transform", "train", "monitor", "all"])
     ap.add_argument("--start", default="2021-01-01")
     ap.add_argument("--end", default=ingest.default_end())
     ap.add_argument("--auto-retrain", action="store_true")
@@ -22,6 +23,10 @@ def main():
 
     if a.step in ("ingest", "all"):
         ingest.ingest(a.start, a.end)
+        ingest.ingest_live()
+    if a.step == "live":      # refresh to today without retraining: forecast API -> bronze -> silver -> gold
+        ingest.ingest_live()
+        transform.run()
     if a.step in ("transform", "all"):
         transform.run()
     if a.step in ("train", "all"):
